@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { ArrowLeft, Home } from 'lucide-react';
 import { GlobalHeader } from '@/components/global-header';
 import { useMaintenance } from '@/hooks/useMaintenance';
+import { allTools } from '@/components/tools-page';
 import { MaintenanceOverlay } from '@/components/maintenance-overlay';
 import { BottomNav } from '@/components/bottom-nav';
 import { DashboardSkeleton } from '@/components/dashboard-skeleton';
@@ -70,6 +71,33 @@ export default function AppRoot() {
   };
 
   const renderActiveTool = () => {
+    // Check if the currently active tool is in maintenance
+    if (maintenance.tools?.[activeTool]?.is_maintenance) {
+      const toolLabel = allTools.find(t => t.id === activeTool)?.label || activeTool;
+      return (
+        <div className="flex flex-col items-center justify-center py-20 px-6 text-center space-y-6">
+          <div className="w-20 h-20 bg-blue-500/10 rounded-3xl flex items-center justify-center">
+            <ShieldAlert className="w-10 h-10 text-blue-500" />
+          </div>
+          <div>
+            <h2 className="text-2xl font-bold mb-2">Under Maintenance</h2>
+            <p className="text-muted-foreground text-sm leading-relaxed">
+              {maintenance.tools[activeTool].message || `We are upgrading ${toolLabel}. Be back soon!`}
+            </p>
+          </div>
+          <div className="w-full max-w-[200px] flex flex-col gap-3">
+            <Button 
+              onClick={() => setActiveTool('dashboard')}
+              variant="outline"
+              className="w-full"
+            >
+              Back to Dashboard
+            </Button>
+          </div>
+        </div>
+      );
+    }
+
     const featureId = toolToFeatureId[activeTool];
     if (featureId && !hasUnlockedFeature(profile, featureId)) {
       return (

@@ -160,3 +160,21 @@ export async function markAsReadSupabase(userId: string, readBy: 'user' | 'admin
     const updatePayload = readBy === 'user' ? { unread_user: 0 } : { unread_admin: 0 };
     await supabase.from('support_sessions').update(updatePayload).eq('user_id', userId);
 }
+
+export async function deleteMessageSupabase(messageId: string) {
+    await supabase.from('support_messages').delete().eq('id', messageId);
+}
+
+export async function deleteSessionSupabase(userId: string) {
+    await supabase.from('support_messages').delete().eq('user_id', userId);
+    await supabase.from('support_sessions').delete().eq('user_id', userId);
+}
+
+export async function deleteOldMessagesSupabase() {
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    const isoDate = sevenDaysAgo.toISOString();
+    
+    // Delete messages older than 7 days
+    await supabase.from('support_messages').delete().lt('created_at', isoDate);
+}

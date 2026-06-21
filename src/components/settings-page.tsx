@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useProfile } from '@/context/ProfileContext';
 import { useMaintenance } from '@/hooks/useMaintenance';
+import { allTools } from '@/components/tools-page';
 import { useChangelog, AboutConfig, RoadmapItem } from '@/hooks/useChangelog';
 import { supabase } from '@/lib/supabase';
 import { Label } from '@/components/ui/label';
@@ -44,7 +45,8 @@ import {
 } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { EditWidgetsDialog } from './edit-widgets-dialog';
-import { Download, Upload, Trash2 } from 'lucide-react';
+import { FaqManager } from './faq-manager';
+import { Download, Upload, Trash2, HelpCircle } from 'lucide-react';
 import { hasUnlockedFeature } from '@/lib/level-system';
 import { useToast } from '@/hooks/use-toast';
 
@@ -294,6 +296,16 @@ export function SettingsPage({ onClose }: { onClose?: () => void }) {
       
     if (error) {
       alert("Failed to update maintenance settings. Error: " + error.message);
+    }
+  };
+
+  const handleToolMaintenanceToggle = async (toolId: string, currentState: boolean) => {
+    const { error } = await supabase
+      .from('tool_maintenance')
+      .upsert({ tool_id: toolId, is_maintenance: !currentState });
+      
+    if (error) {
+      alert("Failed to update tool maintenance. Error: " + error.message);
     }
   };
 
@@ -815,6 +827,23 @@ export function SettingsPage({ onClose }: { onClose?: () => void }) {
                       </div>
                       <ChevronRight className="w-4 h-4 text-muted-foreground" />
                     </motion.div>
+
+                    <motion.div
+                      whileTap={{ scale: 0.98 }}
+                      onClick={() => setActiveAdvancedCategory('faqs')}
+                      className="flex items-center justify-between p-4 rounded-2xl border border-purple-500/20 bg-purple-500/5 hover:bg-purple-500/10 transition-colors cursor-pointer"
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="p-2.5 rounded-xl bg-purple-500/10">
+                          <HelpCircle className="w-5 h-5 text-purple-500" />
+                        </div>
+                        <div>
+                          <h3 className="font-semibold text-foreground text-sm">Support FAQs</h3>
+                          <p className="text-xs text-muted-foreground mt-0.5">Manage live chat Help Center</p>
+                        </div>
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                    </motion.div>
                   </div>
                 ) : (
                   <div className="space-y-8 animate-in slide-in-from-right-4 duration-300">
@@ -888,6 +917,35 @@ export function SettingsPage({ onClose }: { onClose?: () => void }) {
                                 </p>
                               </div>
                             )}
+                          </div>
+                        </div>
+
+                        {/* Targeted Tool Maintenance */}
+                        <div className="p-5 rounded-3xl border border-blue-500/20 bg-blue-500/5 backdrop-blur-xl shadow-lg shadow-blue-500/5 space-y-4">
+                          <div>
+                            <Label className="font-bold text-foreground text-base">Targeted Tool Maintenance</Label>
+                            <p className="text-xs text-muted-foreground mt-1">Lock specific features without taking the app down.</p>
+                          </div>
+                          
+                          <div className="space-y-2 max-h-[400px] overflow-y-auto pr-2">
+                            {allTools.map((tool) => {
+                              const isToolActive = maintenance.tools?.[tool.id]?.is_maintenance || false;
+                              return (
+                                <div key={tool.id} className="flex items-center justify-between p-3.5 rounded-xl border border-border/30 bg-card/40">
+                                  <div className="flex items-center gap-3">
+                                    <tool.icon className={`w-4 h-4 ${isToolActive ? 'text-blue-500' : 'text-muted-foreground'}`} />
+                                    <span className={`text-sm font-medium ${isToolActive ? 'text-blue-500' : 'text-foreground'}`}>
+                                      {tool.label}
+                                    </span>
+                                  </div>
+                                  <Switch
+                                    checked={isToolActive}
+                                    onCheckedChange={() => handleToolMaintenanceToggle(tool.id, isToolActive)}
+                                    className="data-[state=checked]:bg-blue-500"
+                                  />
+                                </div>
+                              );
+                            })}
                           </div>
                         </div>
                       </div>
@@ -1262,6 +1320,10 @@ export function SettingsPage({ onClose }: { onClose?: () => void }) {
                           </div>
                         </div>
                       </div>
+                    )}
+
+                    {activeAdvancedCategory === 'faqs' && (
+                      <FaqManager />
                     )}
                   </div>
                 )}

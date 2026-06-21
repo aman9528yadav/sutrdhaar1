@@ -8,11 +8,12 @@ import { Button } from '@/components/ui/button';
 import {
     Flame, CheckSquare, BookText, ArrowRight,
     Calculator, Calendar, Wallet, CreditCard, ArrowRightLeft, Star, Plus, AlertCircle, Activity, Trash2, Trophy,
-    Timer, Lock, Sparkles, TrendingUp, TrendingDown, ChevronRight, Info, Heart, User, Shield, Zap, Clock, Search
+    Timer, Lock, Sparkles, TrendingUp, TrendingDown, ChevronRight, Info, Heart, User, Shield, Zap, Clock, Search, ShieldAlert
 } from 'lucide-react';
 import { format, isToday, subDays, startOfDay, isSameDay } from 'date-fns';
 import { DashboardWidgetItem } from '@/context/ProfileContext';
 import { useChangelog } from '@/hooks/useChangelog';
+import { useMaintenance } from '@/hooks/useMaintenance';
 import { motion, AnimatePresence, useMotionValue, useSpring, useTransform } from 'framer-motion';
 
 interface DashboardPageProps {
@@ -159,7 +160,8 @@ function WeeklyHeatmap({ activityLog }: { activityLog: { timestamp: string }[] }
 
 
 export function DashboardPage({ onToolSelect, onOpenSearch }: DashboardPageProps) {
-    const { profile, updateDashboardLayout, updateWidgetVisibility, updateWidgetSize } = useProfile();
+    const { profile, updateDashboardLayout, updateWidgetVisibility, updateWidgetSize, updateTodo, deleteTodo } = useProfile();
+    const { maintenance } = useMaintenance();
     const { globalNotifications, version } = useChangelog();
     const [isEditMode, setIsEditMode] = useState(false);
     const [isPromoBannerDismissed, setIsPromoBannerDismissed] = useState(false);
@@ -568,9 +570,18 @@ export function DashboardPage({ onToolSelect, onOpenSearch }: DashboardPageProps
             </motion.div>}
 
             {/* ── Task Cards (Horizontal Scroll) ── */}
-            {isWidgetVisible('todo') && <motion.div variants={itemVariants} className="space-y-3">
-                <div className="flex items-center justify-between px-1">
-                    <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Pending Tasks</h2>
+            {isWidgetVisible('todo') && (
+                maintenance.tools?.['todo']?.is_maintenance ? (
+                    <motion.div variants={itemVariants} className="px-1">
+                        <div className="w-full h-24 rounded-2xl border border-blue-500/20 bg-blue-500/5 backdrop-blur-md border-dashed flex flex-col items-center justify-center">
+                            <ShieldAlert className="w-6 h-6 text-blue-500/50 mb-1" />
+                            <h3 className="text-xs font-semibold text-blue-500">Tasks Upgrading</h3>
+                        </div>
+                    </motion.div>
+                ) : (
+                    <motion.div variants={itemVariants} className="space-y-3">
+                        <div className="flex items-center justify-between px-1">
+                            <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Pending Tasks</h2>
                     {profile.todos.filter(t => !t.completed).length > 0 && (
                         <Button variant="ghost" size="sm" className="text-xs h-7 text-primary" onClick={() => onToolSelect('todo')}>
                             View All <ChevronRight className="w-3 h-3 ml-0.5" />
@@ -638,107 +649,136 @@ export function DashboardPage({ onToolSelect, onOpenSearch }: DashboardPageProps
                         </div>
                     )}
                 </div>
-            </motion.div>}
+            </motion.div>
+                )
+            )}
 
             {/* ── Spending Pulse & Budget (NEW) ── */}
-            {isWidgetVisible('budget') && <motion.div variants={itemVariants}>
-                <TiltCard
-                    className="cursor-pointer"
-                    onClick={() => onToolSelect('budget-tracker')}
-                    glareColor="rgba(16, 185, 129, 0.1)"
-                >
-                    <Card className="overflow-hidden rounded-2xl border-border/40 bg-card/50 backdrop-blur-md shadow-sm hover:border-emerald-500/40 transition-colors">
-                        <CardContent className="p-5">
-                            <div className="flex items-center gap-2 mb-4">
-                                <div className="w-7 h-7 rounded-lg bg-emerald-500/10 flex items-center justify-center">
-                                    <Wallet className="w-3.5 h-3.5 text-emerald-500" />
+            {isWidgetVisible('budget') && (
+                maintenance.tools?.['budget-tracker']?.is_maintenance ? (
+                    <motion.div variants={itemVariants}>
+                        <Card className="overflow-hidden rounded-2xl border-blue-500/20 bg-blue-500/5 backdrop-blur-md shadow-sm border-dashed">
+                            <CardContent className="p-6 flex flex-col items-center justify-center text-center space-y-3">
+                                <ShieldAlert className="w-8 h-8 text-blue-500/50" />
+                                <div>
+                                    <h3 className="font-semibold text-sm text-blue-500">Budget Tracker Upgrading</h3>
+                                    <p className="text-xs text-muted-foreground mt-1">We are doing some maintenance on this tool.</p>
                                 </div>
-                                <h3 className="font-semibold text-foreground text-sm">Spending Pulse</h3>
-                            </div>
-                            <div className="flex items-center justify-between gap-4">
-                                <SpendingDonut spent={todayExpenses} limit={budgetLimit} />
-                                <div className="flex-1 space-y-3">
-                                    <div>
-                                        <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Balance</p>
-                                        <p className={`text-lg font-extrabold ${totalBalance < 0 ? 'text-red-500' : 'text-emerald-500'}`}>
-                                            ₹{totalBalance.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
-                                        </p>
-                                    </div>
-                                    <div className="flex gap-3">
-                                        <div className="flex-1 p-2 rounded-lg bg-red-500/10 border border-red-500/20">
-                                            <TrendingDown className="w-3 h-3 text-red-500 mb-0.5" />
-                                            <p className="text-xs font-bold text-foreground">₹{todayExpenses}</p>
-                                            <p className="text-[9px] text-muted-foreground">Spent</p>
+                            </CardContent>
+                        </Card>
+                    </motion.div>
+                ) : (
+                    <motion.div variants={itemVariants}>
+                        <TiltCard
+                            className="cursor-pointer"
+                            onClick={() => onToolSelect('budget-tracker')}
+                            glareColor="rgba(16, 185, 129, 0.1)"
+                        >
+                            <Card className="overflow-hidden rounded-2xl border-border/40 bg-card/50 backdrop-blur-md shadow-sm hover:border-emerald-500/40 transition-colors">
+                                <CardContent className="p-5">
+                                    <div className="flex items-center gap-2 mb-4">
+                                        <div className="w-7 h-7 rounded-lg bg-emerald-500/10 flex items-center justify-center">
+                                            <Wallet className="w-3.5 h-3.5 text-emerald-500" />
                                         </div>
-                                        <div className="flex-1 p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
-                                            <TrendingUp className="w-3 h-3 text-emerald-500 mb-0.5" />
-                                            <p className="text-xs font-bold text-foreground">₹{budgetLimit - todayExpenses > 0 ? budgetLimit - todayExpenses : 0}</p>
-                                            <p className="text-[9px] text-muted-foreground">Left</p>
+                                        <h3 className="font-semibold text-foreground text-sm">Spending Pulse</h3>
+                                    </div>
+                                    <div className="flex items-center justify-between gap-4">
+                                        <SpendingDonut spent={todayExpenses} limit={budgetLimit} />
+                                        <div className="flex-1 space-y-3">
+                                            <div>
+                                                <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Balance</p>
+                                                <p className={`text-lg font-extrabold ${totalBalance < 0 ? 'text-red-500' : 'text-emerald-500'}`}>
+                                                    ₹{totalBalance.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                                                </p>
+                                            </div>
+                                            <div className="flex gap-3">
+                                                <div className="flex-1 p-2 rounded-lg bg-red-500/10 border border-red-500/20">
+                                                    <TrendingDown className="w-3 h-3 text-red-500 mb-0.5" />
+                                                    <p className="text-xs font-bold text-foreground">₹{todayExpenses}</p>
+                                                    <p className="text-[9px] text-muted-foreground">Spent</p>
+                                                </div>
+                                                <div className="flex-1 p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+                                                    <TrendingUp className="w-3 h-3 text-emerald-500 mb-0.5" />
+                                                    <p className="text-xs font-bold text-foreground">₹{budgetLimit - todayExpenses > 0 ? budgetLimit - todayExpenses : 0}</p>
+                                                    <p className="text-[9px] text-muted-foreground">Left</p>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                            </div>
-                            {todayExpenses > budgetLimit && (
-                                <motion.div
-                                    className="flex items-center gap-1.5 text-xs text-red-500 bg-red-500/10 p-2 rounded-lg mt-3"
-                                    initial={{ opacity: 0, height: 0 }}
-                                    animate={{ opacity: 1, height: 'auto' }}
-                                >
-                                    <AlertCircle className="w-3.5 h-3.5" />
-                                    <span className="font-medium">Daily budget exceeded!</span>
-                                </motion.div>
-                            )}
-                        </CardContent>
-                    </Card>
-                </TiltCard>
-            </motion.div>}
+                                    {todayExpenses > budgetLimit && (
+                                        <motion.div
+                                            className="flex items-center gap-1.5 text-xs text-red-500 bg-red-500/10 p-2 rounded-lg mt-3"
+                                            initial={{ opacity: 0, height: 0 }}
+                                            animate={{ opacity: 1, height: 'auto' }}
+                                        >
+                                            <AlertCircle className="w-3.5 h-3.5" />
+                                            <span className="font-medium">Daily budget exceeded!</span>
+                                        </motion.div>
+                                    )}
+                                </CardContent>
+                            </Card>
+                        </TiltCard>
+                    </motion.div>
+                )
+            )}
 
             {/* ── Notes Carousel (NEW) ── */}
-            {isWidgetVisible('notes') && <motion.div variants={itemVariants} className="space-y-3">
-                <div className="flex items-center justify-between px-1">
-                    <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Recent Notes</h2>
-                    <Button variant="ghost" size="sm" className="text-xs h-7 text-primary" onClick={() => onToolSelect('notes')}>
-                        All Notes <ChevronRight className="w-3 h-3 ml-0.5" />
-                    </Button>
-                </div>
-                <div className="flex overflow-x-auto gap-3 pb-1 scrollbar-hide -mx-4 px-4">
-                    {recentNotes.length > 0 ? recentNotes.map((note, idx) => {
-                        const noteColors = [
-                            'from-yellow-500/15 to-amber-500/5 border-yellow-500/25',
-                            'from-blue-500/15 to-indigo-500/5 border-blue-500/25',
-                            'from-pink-500/15 to-rose-500/5 border-pink-500/25',
-                            'from-green-500/15 to-emerald-500/5 border-green-500/25',
-                        ];
-                        const colorClass = noteColors[idx % noteColors.length];
-
-                        return (
-                            <motion.div
-                                key={note.id}
-                                className={`shrink-0 w-44 rounded-2xl border bg-gradient-to-br ${colorClass} backdrop-blur-md p-4 cursor-pointer hover:scale-[1.03] transition-transform duration-300 shadow-sm`}
-                                initial={{ opacity: 0, y: 20, rotate: idx % 2 === 0 ? -2 : 2 }}
-                                animate={{ opacity: 1, y: 0, rotate: 0 }}
-                                transition={{ delay: 0.08 * idx, duration: 0.5 }}
-                                onClick={() => onToolSelect(`notes?id=${note.id}`)}
-                            >
-                                <BookText className="w-4 h-4 text-muted-foreground mb-2" />
-                                <h4 className="text-xs font-bold text-foreground line-clamp-1 mb-1">{note.title || 'Untitled'}</h4>
-                                <p className="text-[10px] text-muted-foreground line-clamp-3 leading-relaxed">{note.content}</p>
-                                <p className="text-[9px] text-muted-foreground/60 mt-2">
-                                    {format(new Date(note.updatedAt), 'MMM d')}
-                                </p>
-                            </motion.div>
-                        );
-                    }) : (
-                        <div className="w-full flex flex-col items-center justify-center py-6 rounded-2xl bg-card/30 border border-dashed border-border/50 backdrop-blur-sm">
-                            <BookText className="w-8 h-8 text-muted-foreground/40 mb-2" />
-                            <p className="text-xs text-muted-foreground italic">No notes yet</p>
-                            <Button size="sm" className="mt-2 bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground h-7 text-xs rounded-xl" onClick={() => onToolSelect('notes')}>
-                                <Plus className="w-3 h-3 mr-1" /> Create Note
+            {isWidgetVisible('notes') && (
+                maintenance.tools?.['notes']?.is_maintenance ? (
+                    <motion.div variants={itemVariants} className="px-1">
+                        <div className="w-full h-24 rounded-2xl border border-blue-500/20 bg-blue-500/5 backdrop-blur-md border-dashed flex flex-col items-center justify-center">
+                            <ShieldAlert className="w-6 h-6 text-blue-500/50 mb-1" />
+                            <h3 className="text-xs font-semibold text-blue-500">Notes Upgrading</h3>
+                        </div>
+                    </motion.div>
+                ) : (
+                    <motion.div variants={itemVariants} className="space-y-3">
+                        <div className="flex items-center justify-between px-1">
+                            <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Recent Notes</h2>
+                            <Button variant="ghost" size="sm" className="text-xs h-7 text-primary" onClick={() => onToolSelect('notes')}>
+                                All Notes <ChevronRight className="w-3 h-3 ml-0.5" />
                             </Button>
                         </div>
-                    )}
-                </div>
-            </motion.div>}
+                        <div className="flex overflow-x-auto gap-3 pb-1 scrollbar-hide -mx-4 px-4">
+                            {recentNotes.length > 0 ? recentNotes.map((note, idx) => {
+                                const noteColors = [
+                                    'from-yellow-500/15 to-amber-500/5 border-yellow-500/25',
+                                    'from-blue-500/15 to-indigo-500/5 border-blue-500/25',
+                                    'from-pink-500/15 to-rose-500/5 border-pink-500/25',
+                                    'from-green-500/15 to-emerald-500/5 border-green-500/25',
+                                ];
+                                const colorClass = noteColors[idx % noteColors.length];
+
+                                return (
+                                    <motion.div
+                                        key={note.id}
+                                        className={`shrink-0 w-44 rounded-2xl border bg-gradient-to-br ${colorClass} backdrop-blur-md p-4 cursor-pointer hover:scale-[1.03] transition-transform duration-300 shadow-sm`}
+                                        initial={{ opacity: 0, y: 20, rotate: idx % 2 === 0 ? -2 : 2 }}
+                                        animate={{ opacity: 1, y: 0, rotate: 0 }}
+                                        transition={{ delay: 0.08 * idx, duration: 0.5 }}
+                                        onClick={() => onToolSelect(`notes?id=${note.id}`)}
+                                    >
+                                        <BookText className="w-4 h-4 text-muted-foreground mb-2" />
+                                        <h4 className="text-xs font-bold text-foreground line-clamp-1 mb-1">{note.title || 'Untitled'}</h4>
+                                        <p className="text-[10px] text-muted-foreground line-clamp-3 leading-relaxed">{note.content}</p>
+                                        <p className="text-[9px] text-muted-foreground/60 mt-2">
+                                            {format(new Date(note.updatedAt), 'MMM d')}
+                                        </p>
+                                    </motion.div>
+                                );
+                            }) : (
+                                <div className="w-full flex flex-col items-center justify-center py-6 rounded-2xl bg-card/30 border border-dashed border-border/50 backdrop-blur-sm">
+                                    <BookText className="w-8 h-8 text-muted-foreground/40 mb-2" />
+                                    <p className="text-xs text-muted-foreground italic">No notes yet</p>
+                                    <Button size="sm" className="mt-2 bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground h-7 text-xs rounded-xl" onClick={() => onToolSelect('notes')}>
+                                        <Plus className="w-3 h-3 mr-1" /> Create Note
+                                    </Button>
+                                </div>
+                            )}
+                        </div>
+                    </motion.div>
+                )
+            )}
 
             {/* ── Favorites Quick Access ── */}
             {isWidgetVisible('favorites') && recentFavorite && (
