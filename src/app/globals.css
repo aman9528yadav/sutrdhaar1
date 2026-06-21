@@ -1,0 +1,552 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: 'Inter', sans-serif;
+  overflow-x: hidden;
+  /* Prevent horizontal scroll during transitions */
+}
+
+/* Smooth Page Transitions */
+.page-transition {
+  animation: fade-in-up 0.5s ease-out forwards;
+}
+
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+
+@layer base {
+
+  /* Default Light Theme */
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+    --primary: 221.2 83.2% 53.3%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 221.2 83.2% 53.3%;
+    --radius: 0.5rem;
+  }
+
+  /* Default Dark Theme */
+  .dark {
+    --background: 265 40% 10%;
+    --foreground: 210 40% 98%;
+    --card: 265 40% 15%;
+    --card-foreground: 210 40% 98%;
+    --popover: 265 40% 15%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 265 80% 70%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 260 30% 20%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 260 30% 20%;
+    --muted-foreground: 215 20% 65%;
+    --accent: 260 30% 25%;
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 260 30% 20%;
+    --input: 260 30% 20%;
+    --ring: 265 80% 70%;
+    --chart-1: 220 70% 50%;
+    --chart-2: 160 60% 45%;
+    --chart-3: 30 80% 55%;
+    --chart-4: 280 65% 60%;
+    --chart-5: 340 75% 55%;
+  }
+
+  .theme-sutradhaar {
+    --background: 265 40% 10%;
+    --foreground: 210 40% 98%;
+    --card: 265 40% 15%;
+    --card-foreground: 210 40% 98%;
+    --popover: 265 40% 15%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 265 80% 70%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 260 30% 20%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 260 30% 20%;
+    --muted-foreground: 215 20% 65%;
+    --accent: 260 30% 25%;
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 260 30% 20%;
+    --input: 260 30% 20%;
+    --ring: 265 80% 70%;
+  }
+
+  .theme-midnight {
+    --background: 222 47% 11%;
+    --foreground: 210 40% 98%;
+    --card: 217 33% 17%;
+    --card-foreground: 210 40% 98%;
+    --popover: 217 33% 17%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 210 100% 50%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 217 19% 27%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 217 19% 27%;
+    --muted-foreground: 215 20% 65%;
+    --accent: 217 19% 27%;
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 217 19% 27%;
+    --input: 217 19% 27%;
+    --ring: 210 100% 50%;
+  }
+
+  .theme-nebula {
+    --background: 270 50% 8%;
+    --foreground: 280 20% 95%;
+    --card: 270 30% 12%;
+    --card-foreground: 280 20% 95%;
+    --popover: 270 30% 12%;
+    --popover-foreground: 280 20% 95%;
+    --primary: 290 80% 60%;
+    --primary-foreground: 270 50% 8%;
+    --secondary: 270 20% 20%;
+    --secondary-foreground: 280 20% 95%;
+    --muted: 270 20% 20%;
+    --muted-foreground: 280 10% 70%;
+    --accent: 270 30% 25%;
+    --accent-foreground: 280 20% 95%;
+    --destructive: 0 60% 40%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 270 20% 20%;
+    --input: 270 20% 20%;
+    --ring: 290 80% 60%;
+  }
+
+  .theme-emerald {
+    --background: 150 30% 8%;
+    --foreground: 150 20% 95%;
+    --card: 150 20% 12%;
+    --card-foreground: 150 20% 95%;
+    --popover: 150 20% 12%;
+    --popover-foreground: 150 20% 95%;
+    --primary: 150 60% 45%;
+    --primary-foreground: 150 30% 8%;
+    --secondary: 150 15% 20%;
+    --secondary-foreground: 150 20% 95%;
+    --muted: 150 15% 20%;
+    --muted-foreground: 150 10% 70%;
+    --accent: 150 20% 20%;
+    --accent-foreground: 150 20% 95%;
+    --destructive: 0 60% 40%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 150 15% 20%;
+    --input: 150 15% 20%;
+    --ring: 150 60% 45%;
+  }
+
+  .theme-slate {
+    --background: 220 20% 10%;
+    --foreground: 220 10% 95%;
+    --card: 220 15% 14%;
+    --card-foreground: 220 10% 95%;
+    --popover: 220 15% 14%;
+    --popover-foreground: 220 10% 95%;
+    --primary: 220 70% 60%;
+    --primary-foreground: 220 20% 10%;
+    --secondary: 220 10% 20%;
+    --secondary-foreground: 220 10% 95%;
+    --muted: 220 10% 20%;
+    --muted-foreground: 220 10% 60%;
+    --accent: 220 15% 25%;
+    --accent-foreground: 220 10% 95%;
+    --destructive: 0 60% 40%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 220 10% 20%;
+    --input: 220 10% 20%;
+    --ring: 220 70% 60%;
+  }
+
+  .theme-arctic {
+    --background: 210 20% 98%;
+    --foreground: 210 50% 15%;
+    --card: 210 20% 100%;
+    --card-foreground: 210 50% 15%;
+    --popover: 210 20% 100%;
+    --popover-foreground: 210 50% 15%;
+    --primary: 190 90% 45%;
+    --primary-foreground: 190 10% 98%;
+    --secondary: 190 30% 94%;
+    --secondary-foreground: 190 90% 45%;
+    --muted: 190 20% 94%;
+    --muted-foreground: 190 10% 40%;
+    --accent: 190 30% 95%;
+    --accent-foreground: 190 90% 45%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 190 20% 88%;
+    --input: 190 20% 88%;
+    --ring: 190 90% 45%;
+  }
+
+  .theme-lavender {
+    --background: 270 10% 99%;
+    --foreground: 270 40% 10%;
+    --card: 270 10% 100%;
+    --card-foreground: 270 40% 10%;
+    --popover: 270 10% 100%;
+    --popover-foreground: 270 40% 10%;
+    --primary: 270 70% 65%;
+    --primary-foreground: 270 10% 98%;
+    --secondary: 270 30% 95%;
+    --secondary-foreground: 270 70% 65%;
+    --muted: 270 20% 95%;
+    --muted-foreground: 270 10% 45%;
+    --accent: 270 40% 97%;
+    --accent-foreground: 270 70% 65%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 270 20% 90%;
+    --input: 270 20% 90%;
+    --ring: 270 70% 65%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+
+  .note-content ul {
+    @apply list-disc list-inside pl-4;
+  }
+
+  .note-content ol {
+    @apply list-decimal list-inside pl-4;
+  }
+
+  .note-content .note-table {
+    @apply w-full my-4 border-collapse border border-border;
+  }
+
+  .note-content .note-table td {
+    @apply border border-border p-2;
+  }
+
+  .note-content .note-todo-checkbox {
+    @apply w-4 h-4 align-middle mr-2;
+  }
+}
+
+@layer utilities {
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  /* Comprehensive Light Theme Overrides */
+  :root .text-white {
+    color: hsl(var(--foreground)) !important;
+  }
+
+  :root .text-white\/80 {
+    color: hsl(var(--foreground) / 0.8) !important;
+  }
+
+  :root .text-white\/60 {
+    color: hsl(var(--muted-foreground)) !important;
+  }
+
+  :root .text-white\/40 {
+    color: hsl(var(--muted-foreground) / 0.7) !important;
+  }
+
+  :root .text-white\/50 {
+    color: hsl(var(--muted-foreground)) !important;
+  }
+
+  /* Fix dark backgrounds to light */
+  :root .bg-slate-900,
+  :root .bg-slate-950,
+  :root .from-slate-900,
+  :root .via-slate-900,
+  :root .to-slate-950,
+  :root .to-slate-800 {
+    background: hsl(var(--background)) !important;
+  }
+
+  /* Fix gradient backgrounds for light theme */
+  :root .bg-gradient-to-b.from-slate-900 {
+    background: linear-gradient(to bottom, hsl(var(--background)), hsl(var(--card))) !important;
+  }
+
+  :root .bg-gradient-to-r.from-slate-900 {
+    background: linear-gradient(to right, hsl(var(--card)), hsl(var(--muted))) !important;
+  }
+
+  /* Fix borders for light theme */
+  :root .border-white\/10,
+  :root .border-white\/5 {
+    border-color: hsl(var(--border)) !important;
+  }
+
+  /* Fix hover states */
+  :root .hover\:bg-white\/5:hover {
+    background-color: hsl(var(--accent)) !important;
+  }
+
+  /* Fix backdrop */
+  :root .bg-black\/60 {
+    background-color: hsl(0 0% 0% / 0.3) !important;
+  }
+
+  /* Fix card gradients for light theme */
+  :root .from-emerald-900\/20 {
+    --tw-gradient-from: hsl(160 60% 95%) !important;
+  }
+
+  :root .to-teal-900\/20 {
+    --tw-gradient-to: hsl(180 60% 95%) !important;
+  }
+
+  :root .from-indigo-900\/20 {
+    --tw-gradient-from: hsl(240 60% 95%) !important;
+  }
+
+  :root .to-blue-900\/20 {
+    --tw-gradient-to: hsl(220 60% 95%) !important;
+  }
+
+  :root .from-violet-600\/20 {
+    --tw-gradient-from: hsl(270 60% 95%) !important;
+  }
+
+  :root .to-purple-900\/20 {
+    --tw-gradient-to: hsl(280 60% 95%) !important;
+  }
+
+  /* Fix text gradient for headings */
+  :root .bg-gradient-to-r.from-white.to-white\/60 {
+    background: linear-gradient(to right, hsl(var(--foreground)), hsl(var(--foreground) / 0.7)) !important;
+    -webkit-background-clip: text !important;
+    background-clip: text !important;
+  }
+
+  :root .from-emerald-400 {
+    --tw-gradient-from: hsl(160 70% 40%) !important;
+  }
+
+  :root .to-cyan-500 {
+    --tw-gradient-to: hsl(190 70% 45%) !important;
+  }
+
+  /* Fix budget card gradient */
+  :root .from-emerald-600 {
+    --tw-gradient-from: hsl(160 70% 50%) !important;
+  }
+
+  :root .to-teal-800 {
+    --tw-gradient-to: hsl(180 70% 45%) !important;
+  }
+
+  /* Ensure card backgrounds are visible */
+  :root .bg-card\/50 {
+    background-color: hsl(var(--card) / 0.5) !important;
+  }
+
+  :root .bg-card\/30 {
+    background-color: hsl(var(--card) / 0.3) !important;
+  }
+
+  /* Fix search dialog and modal backgrounds */
+  :root .bg-slate-900 {
+    background-color: hsl(var(--card)) !important;
+  }
+
+  /* Fix placeholder text */
+  :root .placeholder\:text-white\/40::placeholder {
+    color: hsl(var(--muted-foreground)) !important;
+  }
+
+  /* Fix input text color */
+  :root input.text-white {
+    color: hsl(var(--foreground)) !important;
+  }
+
+  /* Fix search dialog specific elements */
+  :root .text-white\/30 {
+    color: hsl(var(--muted-foreground) / 0.6) !important;
+  }
+
+  /* Fix hover backgrounds in dialogs */
+  :root .hover\:bg-white\/10:hover,
+  :root .bg-white\/5 {
+    background-color: hsl(var(--accent)) !important;
+  }
+
+  :root .bg-white\/10 {
+    background-color: hsl(var(--accent) / 1.2) !important;
+  }
+
+  /* Fix dialog footer */
+  :root .bg-slate-950\/50 {
+    background-color: hsl(var(--muted)) !important;
+  }
+
+  /* Fix APK download banner and green-themed elements */
+  :root .from-green-600\/20 {
+    --tw-gradient-from: hsl(142 76% 85%) !important;
+  }
+
+  :root .to-emerald-600\/20 {
+    --tw-gradient-to: hsl(160 76% 85%) !important;
+  }
+
+  :root .border-green-500\/30 {
+    border-color: hsl(142 70% 55%) !important;
+  }
+
+  :root .bg-green-500\/20 {
+    background-color: hsl(142 76% 85%) !important;
+  }
+
+  :root .text-green-400 {
+    color: hsl(142 70% 35%) !important;
+  }
+
+  :root .text-green-200\/80 {
+    color: hsl(142 60% 30%) !important;
+  }
+
+  :root .bg-green-600 {
+    background-color: hsl(142 70% 45%) !important;
+  }
+
+  :root .hover\:bg-green-700:hover {
+    background-color: hsl(142 70% 40%) !important;
+  }
+
+  /* Fix other color-themed text for light mode */
+  :root .text-blue-200\/80 {
+    color: hsl(220 70% 40%) !important;
+  }
+
+  :root .text-emerald-200\/80 {
+    color: hsl(160 70% 35%) !important;
+  }
+
+  :root .text-orange-200\/80 {
+    color: hsl(25 70% 40%) !important;
+  }
+
+  :root .text-emerald-100 {
+    color: hsl(160 60% 30%) !important;
+  }
+
+  :root .text-rose-100 {
+    color: hsl(0 60% 40%) !important;
+  }
+
+  :root .text-cyan-100 {
+    color: hsl(190 60% 35%) !important;
+  }
+
+  /* Accessibility enhancements */
+  :root {
+    --text-scale-factor: 1;
+    --animation-duration: var(--duration-300, 0.3s);
+    --animation-iteration-count: infinite;
+  }
+
+  /* Text scaling */
+  html {
+    font-size: calc(1rem * var(--text-scale-factor, 1));
+  }
+
+  .high-contrast-mode {
+    /* Enhance contrast ratios */
+    --foreground: 0 0% 0%;
+    --background: 0 0% 100%;
+    --primary: 0 0% 0%;
+    --border: 0 0% 0%;
+    --muted-foreground: 0 0% 0%;
+    
+    /* Increase border thickness for visibility */
+    border-width: 2px !important;
+  }
+
+  .high-contrast-mode * {
+    border-color: hsl(var(--border)) !important;
+  }
+
+  /* Reduce motion for users with vestibular disorders */
+  .reduce-motion *,
+  .reduce-motion *::before,
+  .reduce-motion *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  /* High contrast mode specific adjustments */
+  .high-contrast-mode .bg-background {
+    background-color: white !important;
+  }
+
+  .high-contrast-mode .text-foreground {
+    color: black !important;
+  }
+
+  .high-contrast-mode .border {
+    border-width: 2px !important;
+  }
+
+  /* Private browsing mode - hide sensitive information */
+  .private-browsing .recent-item,
+  .private-browsing .history-item,
+  .private-browsing .recent-history,
+  .private-browsing .last-used,
+  .private-browsing .recent-conversion,
+  .private-browsing .recent-calculation {
+    display: none !important;
+  }
+
+  .private-browsing .sensitive-data {
+    visibility: hidden !important;
+  }
+}
