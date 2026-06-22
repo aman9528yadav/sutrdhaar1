@@ -301,9 +301,14 @@ export function convert(
   value: number,
   fromUnit: string,
   toUnit: string,
-  category: string
+  category: string,
+  liveCurrencyRates?: Record<string, number>
 ): number | null {
   if (fromUnit === toUnit) return value;
+
+  if (category === 'Currency' && liveCurrencyRates && liveCurrencyRates[fromUnit] && liveCurrencyRates[toUnit]) {
+    return value * (liveCurrencyRates[toUnit] / liveCurrencyRates[fromUnit]);
+  }
 
   if (category === 'Temperature') {
     if (fromUnit === 'Celsius') {
@@ -336,9 +341,15 @@ export function convert(
 export function getConversionFormula(
   fromUnit: string,
   toUnit: string,
-  category: string
+  category: string,
+  liveCurrencyRates?: Record<string, number>
 ): string {
   if (fromUnit === toUnit) return `Value remains the same`;
+
+  if (category === 'Currency' && liveCurrencyRates && liveCurrencyRates[fromUnit] && liveCurrencyRates[toUnit]) {
+    const ratio = liveCurrencyRates[toUnit] / liveCurrencyRates[fromUnit];
+    return `Multiply by ${ratio.toPrecision(6)} (Live Rate)`;
+  }
 
   if (category === 'Temperature') {
     if (fromUnit === 'Celsius' && toUnit === 'Fahrenheit') {

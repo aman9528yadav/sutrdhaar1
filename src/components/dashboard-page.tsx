@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useRef, useCallback, useState } from 'react';
+import React, { useMemo, useRef, useCallback, useState, useEffect } from 'react';
 import { useProfile } from '@/context/ProfileContext';
 import { MagicEntry } from '@/components/magic-entry';
 import { Card, CardContent } from '@/components/ui/card';
@@ -158,6 +158,99 @@ function WeeklyHeatmap({ activityLog }: { activityLog: { timestamp: string }[] }
     );
 }
 
+
+// ─── Banner Slider ───
+function BannerSlider({ membershipStatus, dailyInsight }: { membershipStatus: any, dailyInsight: any }) {
+    const [index, setIndex] = useState(0);
+    
+    const banners = [];
+    
+    if (membershipStatus) {
+        banners.push(
+            <div key="membership" className={`p-4 rounded-xl bg-gradient-to-r ${membershipStatus.color} border ${membershipStatus.border} flex items-center justify-between`}>
+                <div className="flex items-center gap-3">
+                    <div className={`p-2 rounded-lg bg-white/10 backdrop-blur-sm ${membershipStatus.textColor}`}>
+                        <membershipStatus.icon className="w-5 h-5" />
+                    </div>
+                    <span className="font-semibold text-sm text-foreground">{membershipStatus.text}</span>
+                </div>
+            </div>
+        );
+    }
+
+    banners.push(
+        <a key="offline" href="/offline-app/index.html" target="_blank" rel="noopener noreferrer" className="block outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-2xl w-full">
+            <div className="bg-gradient-to-r from-teal-500/10 to-emerald-500/10 border border-teal-500/20 backdrop-blur-md rounded-2xl p-4 flex items-center justify-between shadow-sm transition-transform hover:scale-[1.02] w-full">
+                <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-teal-500/20 flex items-center justify-center shrink-0">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-teal-600"><path d="M10.5 22H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v7.5"/><path d="M8 12h8"/><path d="M8 8h10"/><path d="m16 19 2 2 4-4"/></svg>
+                    </div>
+                    <div className="min-w-0">
+                        <h3 className="font-bold text-foreground text-sm truncate">Offline Mode</h3>
+                        <p className="text-xs text-muted-foreground truncate">Access your tools without internet</p>
+                    </div>
+                </div>
+                <Button size="icon" variant="ghost" className="rounded-full bg-teal-500/10 text-teal-600 hover:bg-teal-500/20 pointer-events-none shrink-0 h-8 w-8 ml-2">
+                    <ArrowRight className="w-4 h-4" />
+                </Button>
+            </div>
+        </a>
+    );
+
+    if (dailyInsight) {
+        banners.push(
+            <div key="insight" className={`relative overflow-hidden rounded-2xl border ${dailyInsight.border} bg-gradient-to-r ${dailyInsight.color} backdrop-blur-md p-4 shadow-sm w-full h-full flex flex-col justify-center`}>
+                <div className="absolute -top-4 -right-4 w-24 h-24 rounded-full bg-white/5 blur-xl pointer-events-none" />
+                <div className="flex items-center gap-3 relative z-10">
+                    <div className="w-11 h-11 rounded-xl bg-background/40 backdrop-blur-sm border border-white/10 flex items-center justify-center text-2xl shrink-0">
+                        {dailyInsight.emoji}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5 mb-0.5">
+                            <Sparkles className="w-3.5 h-3.5 text-primary shrink-0" />
+                            <span className="text-[10px] font-bold text-primary uppercase tracking-wider truncate">Daily Insight</span>
+                        </div>
+                        <p className="text-sm font-semibold text-foreground leading-snug">{dailyInsight.text}</p>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    useEffect(() => {
+        if (banners.length <= 1) return;
+        const interval = setInterval(() => {
+            setIndex((prev) => (prev + 1) % banners.length);
+        }, 4000);
+        return () => clearInterval(interval);
+    }, [banners.length]);
+
+    if (banners.length === 0) return null;
+
+    return (
+        <div className="relative overflow-hidden w-full rounded-2xl min-h-[72px]">
+            <motion.div 
+                className="flex h-full"
+                animate={{ x: `-${index * 100}%` }}
+                transition={{ type: "spring", stiffness: 300, damping: 30 }}
+            >
+                {banners.map((banner, i) => (
+                    <div key={i} className="w-full shrink-0 flex items-stretch">
+                        {banner}
+                    </div>
+                ))}
+            </motion.div>
+            
+            {banners.length > 1 && (
+                <div className="absolute top-2 right-4 flex justify-center gap-1.5 z-20">
+                    {banners.map((_, i) => (
+                        <div key={i} className={`w-1.5 h-1.5 rounded-full transition-all ${i === index ? 'bg-foreground/50 scale-125' : 'bg-foreground/20'}`} />
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+}
 
 export function DashboardPage({ onToolSelect, onOpenSearch }: DashboardPageProps) {
     const { profile, updateDashboardLayout, updateWidgetVisibility, updateWidgetSize, updateTodo, deleteTodo } = useProfile();
@@ -463,57 +556,9 @@ export function DashboardPage({ onToolSelect, onOpenSearch }: DashboardPageProps
                 </Card>
             </motion.div>
 
-            {/* ── Membership Status Banner ── */}
-            {membershipStatus && (
-                <motion.div variants={itemVariants}>
-                    <div className={`p-4 rounded-xl bg-gradient-to-r ${membershipStatus.color} border ${membershipStatus.border} flex items-center justify-between`}>
-                        <div className="flex items-center gap-3">
-                            <div className={`p-2 rounded-lg bg-white/10 backdrop-blur-sm ${membershipStatus.textColor}`}>
-                                <membershipStatus.icon className="w-5 h-5" />
-                            </div>
-                            <span className="font-semibold text-sm text-foreground">{membershipStatus.text}</span>
-                        </div>
-                    </div>
-                </motion.div>
-            )}
-
-            {/* ── Offline Mode Banner (KEPT AS-IS) ── */}
+            {/* ── Banners Slider (NEW) ── */}
             <motion.div variants={itemVariants}>
-                <a href="/offline-app/index.html" target="_blank" rel="noopener noreferrer" className="block outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-2xl">
-                    <div className="bg-gradient-to-r from-teal-500/10 to-emerald-500/10 border border-teal-500/20 backdrop-blur-md rounded-2xl p-4 flex items-center justify-between shadow-sm transition-transform hover:scale-[1.02]">
-                        <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-teal-500/20 flex items-center justify-center">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-teal-600"><path d="M10.5 22H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v7.5"/><path d="M8 12h8"/><path d="M8 8h10"/><path d="m16 19 2 2 4-4"/></svg>
-                            </div>
-                            <div>
-                                <h3 className="font-bold text-foreground text-sm">Offline Mode</h3>
-                                <p className="text-xs text-muted-foreground">Access your tools without internet</p>
-                            </div>
-                        </div>
-                        <Button size="icon" variant="ghost" className="rounded-full bg-teal-500/10 text-teal-600 hover:bg-teal-500/20 pointer-events-none shrink-0 h-8 w-8">
-                            <ArrowRight className="w-4 h-4" />
-                        </Button>
-                    </div>
-                </a>
-            </motion.div>
-
-            {/* ── Daily Insight Card (NEW) ── */}
-            <motion.div variants={itemVariants}>
-                <div className={`relative overflow-hidden rounded-2xl border ${dailyInsight.border} bg-gradient-to-r ${dailyInsight.color} backdrop-blur-md p-4 shadow-sm`}>
-                    <div className="absolute -top-4 -right-4 w-24 h-24 rounded-full bg-white/5 blur-xl pointer-events-none" />
-                    <div className="flex items-center gap-3 relative z-10">
-                        <div className="w-11 h-11 rounded-xl bg-background/40 backdrop-blur-sm border border-white/10 flex items-center justify-center text-2xl shrink-0">
-                            {dailyInsight.emoji}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-1.5 mb-0.5">
-                                <Sparkles className="w-3.5 h-3.5 text-primary" />
-                                <span className="text-[10px] font-bold text-primary uppercase tracking-wider">Daily Insight</span>
-                            </div>
-                            <p className="text-sm font-semibold text-foreground leading-snug">{dailyInsight.text}</p>
-                        </div>
-                    </div>
-                </div>
+                <BannerSlider membershipStatus={membershipStatus} dailyInsight={dailyInsight} />
             </motion.div>
 
             {/* ── Quick Actions Grid (NEW) ── */}

@@ -237,7 +237,7 @@ export default function AppRoot() {
       </main>
 
       {!profile.isGuest && <AiAssistant />}
-      <ChatWidget />
+      {activeTool === 'dashboard' && <ChatWidget />}
       <BottomNav activeTab={activeTool} onTabSelect={setActiveTool} />
 
       <GlobalSearchDialog 

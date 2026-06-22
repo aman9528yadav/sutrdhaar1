@@ -1,7 +1,7 @@
 "use client";
 
 import React from 'react';
-import { Bell, Sparkles, User, LogOut, X, Search } from 'lucide-react';
+import { Bell, Sparkles, User, LogOut, X, Search, Globe } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useProfile } from '@/context/ProfileContext';
@@ -13,11 +13,40 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { cn } from '@/lib/utils';
 
 export function GlobalHeader({ onProfileClick, onOpenSearch }: { onProfileClick?: () => void, onOpenSearch?: () => void }) {
     const { profile, logout, setProfile, markNotificationAsRead, dismissNotification } = useProfile();
     const { globalNotifications } = useChangelog();
     const { isActive } = useTimer();
+
+    const [currentLang, setCurrentLang] = React.useState('en');
+
+    const handleLanguageChange = (langCode: string) => {
+        setCurrentLang(langCode);
+        // Find the hidden Google Translate select box and change it programmatically
+        const selectBox = document.querySelector('.goog-te-combo') as HTMLSelectElement;
+        if (selectBox) {
+            selectBox.value = langCode;
+            selectBox.dispatchEvent(new Event('change'));
+        }
+    };
+
+    const languages = [
+        { code: 'en', label: 'English' },
+        { code: 'hi', label: 'Hindi' },
+        { code: 'bn', label: 'Bengali' },
+        { code: 'te', label: 'Telugu' },
+        { code: 'ta', label: 'Tamil' },
+        { code: 'mr', label: 'Marathi' },
+        { code: 'gu', label: 'Gujarati' },
+        { code: 'ur', label: 'Urdu' },
+        { code: 'es', label: 'Spanish' },
+        { code: 'fr', label: 'French' },
+        { code: 'de', label: 'German' },
+        { code: 'zh-CN', label: 'Chinese' },
+        { code: 'ar', label: 'Arabic' }
+    ];
 
     if (isActive) return null;
 
@@ -49,10 +78,30 @@ export function GlobalHeader({ onProfileClick, onOpenSearch }: { onProfileClick?
                     </span>
                 </div>
                 
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2">
                     <Button variant="ghost" size="icon" className="w-9 h-9 rounded-full text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors" onClick={() => onOpenSearch && onOpenSearch()}>
                         <Search className="w-5 h-5" />
                     </Button>
+                    
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="w-9 h-9 rounded-full text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors">
+                                <Globe className="w-5 h-5" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-40 rounded-xl max-h-64 overflow-y-auto">
+                            {languages.map(lang => (
+                                <DropdownMenuItem 
+                                    key={lang.code} 
+                                    onClick={() => handleLanguageChange(lang.code)}
+                                    className={cn("cursor-pointer font-medium", currentLang === lang.code && "text-primary bg-primary/10")}
+                                >
+                                    {lang.label}
+                                </DropdownMenuItem>
+                            ))}
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+
                     <DropdownMenu onOpenChange={handleOpenChange}>
                         <DropdownMenuTrigger asChild>
                             <div className="relative">

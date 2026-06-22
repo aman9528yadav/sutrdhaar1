@@ -550,3 +550,40 @@ body {
     visibility: hidden !important;
   }
 }
+
+/* Google Translate Overrides - Ultimate Hide */
+#google_translate_element,
+.goog-te-banner-frame,
+.skiptranslate > iframe.goog-te-banner-frame,
+iframe[name="google_translate_frame"],
+.VIpgJd-ZVi9od-aZ2wEe-wOHMyf,
+.VIpgJd-ZVi9od-aZ2wEe-OiiCO,
+.VIpgJd-ZVi9od-ORHb-OEVmcd,
+#goog-gt-tt, 
+.goog-te-balloon-frame {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+}
+
+body > .skiptranslate {
+  display: none !important;
+  visibility: hidden !important;
+}
+
+html, body {
+  top: 0px !important; 
+  margin-top: 0px !important;
+  position: static !important;
+}
+
+.goog-tooltip,
+.goog-tooltip:hover {
+  display: none !important;
+}
+
+.goog-text-highlight {
+  background-color: transparent !important;
+  border: none !important; 
+  box-shadow: none !important;
+}

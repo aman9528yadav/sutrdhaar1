@@ -7,7 +7,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { User, Mail, Phone, MapPin, Save, Shield, Star, Calendar, Flame, Settings, Hexagon, LogIn, LogOut, ChevronRight, ArrowLeft, Zap } from 'lucide-react';
+import { User, Mail, Phone, MapPin, Save, Shield, Star, Calendar, Flame, Settings, Hexagon, LogIn, LogOut, ChevronRight, ArrowLeft, Zap, Lock, Key, Loader2 } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -25,6 +26,56 @@ export function ProfilePage({ onNavigate }: { onNavigate?: (page: string) => voi
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData(prev => ({ ...prev, [e.target.id]: e.target.value }));
+  };
+
+  // Password Change State
+  const [passwordStep, setPasswordStep] = useState(0); // 0 = hidden, 1 = current, 2 = new
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [isPasswordLoading, setIsPasswordLoading] = useState(false);
+
+  const verifyCurrentPassword = async () => {
+    if (!currentPassword) {
+      toast({ title: "Error", description: "Please enter your current password.", variant: "destructive" });
+      return;
+    }
+    setIsPasswordLoading(true);
+    const { error } = await supabase.auth.signInWithPassword({
+      email: profile.email || '',
+      password: currentPassword,
+    });
+    setIsPasswordLoading(false);
+    
+    if (error) {
+      toast({ title: "Verification Failed", description: "Incorrect current password.", variant: "destructive" });
+    } else {
+      setPasswordStep(2);
+    }
+  };
+
+  const updatePassword = async () => {
+    if (newPassword.length < 6) {
+      toast({ title: "Error", description: "Password must be at least 6 characters.", variant: "destructive" });
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      toast({ title: "Error", description: "Passwords do not match.", variant: "destructive" });
+      return;
+    }
+    setIsPasswordLoading(true);
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    setIsPasswordLoading(false);
+    
+    if (error) {
+      toast({ title: "Update Failed", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "Success", description: "Your password has been successfully updated." });
+      setPasswordStep(0);
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+    }
   };
 
   const handleSave = () => {
@@ -127,9 +178,103 @@ export function ProfilePage({ onNavigate }: { onNavigate?: (page: string) => voi
                 </div>
               </div>
 
+              {/* Password Change Slider */}
+              <div className="pt-4 border-t border-white/5">
+                <AnimatePresence mode="wait">
+                  {passwordStep === 0 ? (
+                    <motion.div key="step-0" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                      <Button 
+                        variant="outline" 
+                        onClick={() => setPasswordStep(1)}
+                        className="w-full h-12 border-white/10 bg-black/10 hover:bg-black/20 gap-2 rounded-xl"
+                      >
+                        <Lock className="w-4 h-4 text-muted-foreground" />
+                        Change Password
+                      </Button>
+                    </motion.div>
+                  ) : passwordStep === 1 ? (
+                    <motion.div 
+                      key="step-1" 
+                      initial={{ opacity: 0, x: 20 }} 
+                      animate={{ opacity: 1, x: 0 }} 
+                      exit={{ opacity: 0, x: -20 }}
+                      className="space-y-4"
+                    >
+                      <div className="space-y-2">
+                        <div className="flex justify-between items-center">
+                            <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Verify Current Password</Label>
+                            <span onClick={() => setPasswordStep(0)} className="text-xs text-muted-foreground hover:text-foreground cursor-pointer font-semibold underline decoration-white/20">Cancel</span>
+                        </div>
+                        <div className="relative flex gap-2">
+                          <div className="relative flex-1">
+                            <Key className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                            <Input
+                              type="password"
+                              value={currentPassword}
+                              onChange={(e) => setCurrentPassword(e.target.value)}
+                              placeholder="Enter current password"
+                              className="pl-9 h-12 bg-black/20 border-white/10 focus-visible:ring-primary/50 rounded-xl"
+                            />
+                          </div>
+                          <Button 
+                            onClick={verifyCurrentPassword} 
+                            disabled={isPasswordLoading || !currentPassword}
+                            className="h-12 rounded-xl px-6"
+                          >
+                            {isPasswordLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Next"}
+                          </Button>
+                        </div>
+                      </div>
+                    </motion.div>
+                  ) : (
+                    <motion.div 
+                      key="step-2" 
+                      initial={{ opacity: 0, x: 20 }} 
+                      animate={{ opacity: 1, x: 0 }} 
+                      exit={{ opacity: 0, x: -20 }}
+                      className="space-y-4 bg-white/5 p-4 rounded-2xl border border-white/10 relative"
+                    >
+                        <div className="flex justify-between items-center mb-2">
+                            <Label className="text-xs font-semibold text-primary uppercase tracking-wider">Create New Password</Label>
+                            <span onClick={() => { setPasswordStep(0); setCurrentPassword(''); }} className="text-xs text-muted-foreground hover:text-foreground cursor-pointer font-semibold underline decoration-white/20">Cancel</span>
+                        </div>
+                        <div className="space-y-3">
+                            <div className="relative">
+                                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                                <Input
+                                    type="password"
+                                    value={newPassword}
+                                    onChange={(e) => setNewPassword(e.target.value)}
+                                    placeholder="New Password (min 6 chars)"
+                                    className="pl-9 h-12 bg-black/30 border-white/10 focus-visible:ring-primary/50 rounded-xl"
+                                />
+                            </div>
+                            <div className="relative">
+                                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                                <Input
+                                    type="password"
+                                    value={confirmPassword}
+                                    onChange={(e) => setConfirmPassword(e.target.value)}
+                                    placeholder="Confirm New Password"
+                                    className="pl-9 h-12 bg-black/30 border-white/10 focus-visible:ring-primary/50 rounded-xl"
+                                />
+                            </div>
+                        </div>
+                        <Button 
+                            onClick={updatePassword} 
+                            disabled={isPasswordLoading || !newPassword || !confirmPassword}
+                            className="w-full h-12 rounded-xl mt-2 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white font-bold"
+                        >
+                            {isPasswordLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Update Securely"}
+                        </Button>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+
               <Button onClick={handleSave} className="w-full h-12 rounded-xl text-md font-semibold mt-6 gap-2">
                 <Save className="w-4 h-4" />
-                Save Changes
+                Save Profile Changes
               </Button>
             </CardContent>
           </Card>

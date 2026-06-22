@@ -21,7 +21,7 @@ interface ToolsPageProps {
 
 export const allTools = [
     { id: 'admin-inbox', icon: ShieldCheck, label: 'Admin Inbox', category: 'Essentials', color: 'text-red-500', bg: 'bg-red-500/10', adminOnly: true },
-    { id: 'wikipedia', icon: Globe, label: 'Wikipedia', category: 'Essentials', color: 'text-zinc-500', bg: 'bg-zinc-500/10' },
+    { id: 'wikipedia', icon: Globe, label: 'Gyaan', category: 'Essentials', color: 'text-zinc-500', bg: 'bg-zinc-500/10' },
     { id: 'converter', icon: ArrowRightLeft, label: 'Converter', category: 'Essentials', color: 'text-blue-500', bg: 'bg-blue-500/10' },
     { id: 'calculator', icon: Calculator, label: 'Calculator', category: 'Essentials', color: 'text-orange-500', bg: 'bg-orange-500/10' },
     { id: 'notes', icon: BookText, label: 'Notes', category: 'Essentials', color: 'text-yellow-500', bg: 'bg-yellow-500/10' },

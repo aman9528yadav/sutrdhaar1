@@ -24,7 +24,9 @@ import {
   Calculator,
   CalendarDays,
   Hash,
-  Info
+  Info,
+  PartyPopper,
+  Search
 } from 'lucide-react';
 import {
   format,
@@ -55,50 +57,44 @@ import { cn } from '@/lib/utils';
 
 const ResultCard = ({ value, label, subLabel, delay = 0 }: { value: string | number; label: string; subLabel?: string; delay?: number }) => (
   <motion.div
-    initial={{ opacity: 0, y: 20 }}
-    animate={{ opacity: 1, y: 0 }}
-    transition={{ duration: 0.4, delay }}
-    className="flex flex-col items-center justify-center p-4 bg-white/5 border border-white/10 rounded-2xl backdrop-blur-sm hover:bg-white/10 transition-colors"
+    initial={{ opacity: 0, scale: 0.95 }}
+    animate={{ opacity: 1, scale: 1 }}
+    transition={{ duration: 0.4, delay, ease: "easeOut" }}
+    className="flex flex-col items-center justify-center p-5 bg-card/40 border border-white/10 rounded-3xl backdrop-blur-xl shadow-xl hover:bg-white/10 hover:-translate-y-1 transition-all"
   >
-    <span className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-b from-primary to-primary/60">
+    <span className="text-4xl font-black tabular-nums tracking-tighter bg-clip-text text-transparent bg-gradient-to-b from-primary via-primary/80 to-primary/40 drop-shadow-sm">
       {value}
     </span>
-    <span className="text-sm font-medium text-muted-foreground mt-1">{label}</span>
-    {subLabel && <span className="text-xs text-muted-foreground/60 mt-0.5">{subLabel}</span>}
+    <span className="text-sm font-bold text-muted-foreground uppercase tracking-wider mt-2">{label}</span>
+    {subLabel && <span className="text-xs font-semibold text-muted-foreground/50 mt-1">{subLabel}</span>}
   </motion.div>
 );
 
-const DatePickerButton = ({ date, setDate, label }: { date: Date | undefined; setDate: (date: Date | undefined) => void; label: string }) => (
-  <div className="w-full space-y-2">
-    <Label>{label}</Label>
-    <Popover>
-      <PopoverTrigger asChild>
-        <Button
-          variant={"outline"}
-          className={cn(
-            "w-full h-12 justify-start text-left font-normal border-border bg-muted hover:bg-accent hover:text-accent-foreground rounded-xl",
-            !date && "text-muted-foreground"
-          )}
-        >
-          <CalendarIcon className="mr-2 h-4 w-4" />
-          {date && !isNaN(date.getTime()) ? format(date, "PPP") : <span>{label}</span>}
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-auto p-0 bg-card border-border" align="start">
-        <Calendar
-          mode="single"
-          selected={date}
-          onSelect={setDate}
-          initialFocus
-          captionLayout="dropdown-buttons"
-          fromYear={1900}
-          toYear={2100}
-          className="bg-card text-foreground rounded-md border-border"
+const DatePickerButton = ({ date, setDate, label }: { date: Date | undefined; setDate: (date: Date | undefined) => void; label: string }) => {
+  const dateString = date && !isNaN(date.getTime()) ? format(date, 'yyyy-MM-dd') : '';
+  return (
+    <div className="w-full space-y-2 relative">
+      <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground ml-1">{label}</Label>
+      <div className="relative">
+        <CalendarIcon className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-primary pointer-events-none" />
+        <input 
+          type="date"
+          value={dateString}
+          onChange={(e) => {
+            const val = e.target.value;
+            if (val) {
+              const [y, m, d] = val.split('-');
+              setDate(new Date(Number(y), Number(m) - 1, Number(d)));
+            } else {
+              setDate(undefined);
+            }
+          }}
+          className="w-full h-16 pl-12 pr-4 rounded-2xl bg-black/10 dark:bg-white/5 border border-white/10 text-base font-semibold focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all text-foreground [color-scheme:light] dark:[color-scheme:dark] shadow-inner"
         />
-      </PopoverContent>
-    </Popover>
-  </div>
-);
+      </div>
+    </div>
+  );
+};
 
 // --- Feature Components ---
 
@@ -152,8 +148,12 @@ function DateDifferenceCalculator() {
         <DatePickerButton date={endDate} setDate={setEndDate} label="End Date" />
       </div>
 
-      <Button size="lg" className="w-full rounded-xl h-12 text-base font-semibold shadow-lg shadow-primary/20" onClick={handleCalculate}>
-        Calculate Difference
+      <Button 
+        size="lg" 
+        className="w-full rounded-2xl h-16 text-lg font-black tracking-wide shadow-2xl hover:scale-[1.02] active:scale-95 transition-all bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white border-none" 
+        onClick={handleCalculate}
+      >
+        CALCULATE DIFFERENCE
       </Button>
 
       {/* In-Line History Tape */}
@@ -270,14 +270,14 @@ function AddSubtractCalculator() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {['Years', 'Months', 'Weeks', 'Days'].map((unit) => (
           <div key={unit} className="space-y-2">
-            <Label className="text-xs text-muted-foreground">{unit}</Label>
+            <Label className="text-xs font-bold text-muted-foreground uppercase tracking-wider ml-1">{unit}</Label>
             <Input
               type="number"
               name={unit.toLowerCase()}
               value={duration[unit.toLowerCase() as keyof typeof duration] || ''}
               onChange={handleInputChange}
               placeholder="0"
-              className="h-12 rounded-xl bg-black/5 dark:bg-white/5 border-white/10 text-center text-lg font-medium focus-visible:ring-primary/50"
+              className="h-16 rounded-2xl bg-black/10 dark:bg-white/5 border border-white/10 text-center text-2xl font-black focus-visible:ring-primary/50 shadow-inner transition-all hover:bg-black/20 dark:hover:bg-white/10"
             />
           </div>
         ))}
@@ -436,8 +436,12 @@ function WorkDaysCalculator() {
         <DatePickerButton date={endDate} setDate={setEndDate} label="End Date" />
       </div>
 
-      <Button size="lg" className="w-full rounded-xl h-12" onClick={calculate}>
-        Calculate Work Days
+      <Button 
+        size="lg" 
+        className="w-full rounded-2xl h-16 text-lg font-black tracking-wide shadow-2xl hover:scale-[1.02] active:scale-95 transition-all bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white border-none" 
+        onClick={calculate}
+      >
+        CALCULATE WORK DAYS
       </Button>
 
       <AnimatePresence>
@@ -553,10 +557,155 @@ function WeekNumberCalculator() {
   );
 }
 
+const FESTIVALS_DB = [
+  // 2026
+  { name: "New Year's Day", date: "2026-01-01" },
+  { name: "Lohri", date: "2026-01-13" },
+  { name: "Makar Sankranti / Pongal", date: "2026-01-14" },
+  { name: "Guru Gobind Singh Jayanti", date: "2026-01-24" },
+  { name: "Vasant Panchami", date: "2026-01-24" },
+  { name: "Republic Day", date: "2026-01-26" },
+  { name: "Valentine's Day", date: "2026-02-14" },
+  { name: "Maha Shivaratri", date: "2026-02-15" },
+  { name: "Shivaji Jayanti", date: "2026-02-19" },
+  { name: "Holi", date: "2026-03-04" },
+  { name: "Gudi Padwa / Ugadi", date: "2026-03-19" },
+  { name: "Eid ul-Fitr", date: "2026-03-20" },
+  { name: "Ram Navami", date: "2026-03-27" },
+  { name: "Mahavir Jayanti", date: "2026-03-31" },
+  { name: "Hanuman Jayanti", date: "2026-04-02" },
+  { name: "Good Friday", date: "2026-04-03" },
+  { name: "Easter", date: "2026-04-05" },
+  { name: "Baisakhi", date: "2026-04-14" },
+  { name: "Ambedkar Jayanti", date: "2026-04-14" },
+  { name: "Buddha Purnima", date: "2026-05-01" },
+  { name: "Eid ul-Adha", date: "2026-05-27" },
+  { name: "Muharram", date: "2026-06-26" },
+  { name: "Independence Day (US)", date: "2026-07-04" },
+  { name: "Rath Yatra", date: "2026-07-16" },
+  { name: "Independence Day (IN)", date: "2026-08-15" },
+  { name: "Onam", date: "2026-08-27" },
+  { name: "Raksha Bandhan", date: "2026-08-28" },
+  { name: "Janmashtami", date: "2026-09-04" },
+  { name: "Ganesh Chaturthi", date: "2026-09-14" },
+  { name: "Gandhi Jayanti", date: "2026-10-02" },
+  { name: "Navratri Starts", date: "2026-10-10" },
+  { name: "Maha Navami", date: "2026-10-18" },
+  { name: "Dussehra", date: "2026-10-19" },
+  { name: "Valmiki Jayanti", date: "2026-10-26" },
+  { name: "Halloween", date: "2026-10-31" },
+  { name: "Diwali", date: "2026-11-08" },
+  { name: "Govardhan Puja", date: "2026-11-09" },
+  { name: "Bhai Dooj", date: "2026-11-10" },
+  { name: "Chhath Puja", date: "2026-11-14" },
+  { name: "Guru Nanak Jayanti", date: "2026-11-24" },
+  { name: "Thanksgiving", date: "2026-11-26" },
+  { name: "Christmas", date: "2026-12-25" },
+  { name: "New Year's Eve", date: "2026-12-31" },
+  
+  // 2027
+  { name: "New Year's Day", date: "2027-01-01" },
+  { name: "Republic Day", date: "2027-01-26" },
+  { name: "Maha Shivaratri", date: "2027-03-06" },
+  { name: "Holi", date: "2027-03-23" },
+  { name: "Ambedkar Jayanti", date: "2027-04-14" },
+  { name: "Independence Day (IN)", date: "2027-08-15" },
+  { name: "Gandhi Jayanti", date: "2027-10-02" },
+  { name: "Diwali", date: "2027-10-29" },
+  { name: "Christmas", date: "2027-12-25" },
+];
+
+function FestivalTracker() {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [now, setNow] = useState(new Date());
+
+  useEffect(() => {
+    // Update 'now' every hour to keep "Today/Tomorrow" accurate without heavy renders
+    const interval = setInterval(() => setNow(new Date()), 1000 * 60 * 60);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Filter and process festivals
+  const upcomingFestivals = FESTIVALS_DB
+    .filter(f => f.name.toLowerCase().includes(searchQuery.toLowerCase()))
+    .map(f => {
+      const fDate = new Date(f.date + "T00:00:00");
+      const diffDays = differenceInDays(fDate, new Date(now.getFullYear(), now.getMonth(), now.getDate()));
+      return { ...f, fDate, diffDays };
+    })
+    .filter(f => f.diffDays >= 0) // Only show future or today
+    .sort((a, b) => a.fDate.getTime() - b.fDate.getTime());
+
+  // Group by Month & Year
+  const grouped: Record<string, typeof upcomingFestivals> = {};
+  upcomingFestivals.forEach(f => {
+    const monthKey = format(f.fDate, 'MMMM yyyy');
+    if (!grouped[monthKey]) grouped[monthKey] = [];
+    grouped[monthKey].push(f);
+  });
+
+  const getDayBadge = (diffDays: number) => {
+    if (diffDays === 0) return <span className="bg-emerald-500 text-white px-2 py-0.5 rounded-full text-[10px] font-black uppercase shadow-[0_0_10px_rgba(16,185,129,0.5)]">Today!</span>;
+    if (diffDays === 1) return <span className="bg-amber-500 text-white px-2 py-0.5 rounded-full text-[10px] font-black uppercase">Tomorrow</span>;
+    if (diffDays <= 7) return <span className="bg-blue-500 text-white px-2 py-0.5 rounded-full text-[10px] font-black uppercase">In {diffDays} Days</span>;
+    return <span className="bg-white/10 text-muted-foreground px-2 py-0.5 rounded-full text-[10px] font-bold uppercase">{diffDays} Days Away</span>;
+  };
+
+  return (
+    <div className="space-y-6 h-full flex flex-col max-h-[500px]">
+      <div className="relative shrink-0">
+        <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+        <Input
+          placeholder="Search festivals (e.g. Diwali, Christmas)..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="w-full h-14 pl-12 pr-4 rounded-2xl bg-black/10 dark:bg-white/5 border border-white/10 text-base font-semibold focus-visible:ring-primary/50 shadow-inner"
+        />
+      </div>
+
+      <ScrollArea className="flex-1 pr-4 -mr-4">
+        {Object.keys(grouped).length === 0 ? (
+          <div className="text-center py-10 text-muted-foreground">
+            <PartyPopper className="h-12 w-12 mx-auto mb-3 opacity-20" />
+            <p className="font-semibold">No upcoming festivals found.</p>
+          </div>
+        ) : (
+          <div className="space-y-8 pb-4">
+            {Object.entries(grouped).map(([month, festivals]) => (
+              <div key={month}>
+                <h3 className="text-sm font-black uppercase tracking-widest text-primary mb-3 sticky top-0 bg-card/80 backdrop-blur-md py-1 z-10">{month}</h3>
+                <div className="space-y-3">
+                  {festivals.map((festival, idx) => (
+                    <motion.div
+                      key={festival.name + festival.date}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: idx * 0.05 }}
+                      className="flex items-center justify-between p-4 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 transition-colors group"
+                    >
+                      <div>
+                        <h4 className="font-bold text-foreground text-lg group-hover:text-primary transition-colors">{festival.name}</h4>
+                        <p className="text-sm font-medium text-muted-foreground">{format(festival.fDate, 'EEEE, MMM do')}</p>
+                      </div>
+                      <div className="text-right flex flex-col items-end gap-1">
+                        {getDayBadge(festival.diffDays)}
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </ScrollArea>
+    </div>
+  );
+}
+
 // --- Main Layout ---
 
 export function DateCalculator() {
-  const [activeTab, setActiveTab] = useState("difference");
+  const [activeTab, setActiveTab] = useState("festivals");
 
   const tabs = [
     { id: "difference", label: "Difference", icon: Calculator },
@@ -564,67 +713,71 @@ export function DateCalculator() {
     { id: "age", label: "Age", icon: Baby },
     { id: "work-days", label: "Work Days", icon: Briefcase },
     { id: "countdown", label: "Countdown", icon: Clock },
+    { id: "festivals", label: "Festivals", icon: PartyPopper },
     { id: "week-num", label: "Week #", icon: Hash },
   ];
 
   return (
-    <div className="space-y-6 h-full flex flex-col pb-20 max-w-3xl mx-auto w-full">
-      <div className="flex items-center justify-between">
-          <div>
-              <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-emerald-500 to-teal-600">
-                  Date Tools
-              </h1>
-              <p className="text-muted-foreground mt-1">Calculators and countdowns</p>
-          </div>
+    <div className="relative min-h-[calc(100vh-4rem)] md:min-h-[calc(100vh-8rem)] w-full overflow-hidden rounded-3xl pb-20">
+      {/* Ambient Animated Background */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-3xl z-0">
+          <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-emerald-500/20 rounded-full blur-[100px] animate-pulse mix-blend-screen opacity-50" style={{ animationDuration: '8s' }} />
+          <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-teal-500/20 rounded-full blur-[100px] animate-pulse mix-blend-screen opacity-50" style={{ animationDuration: '10s' }} />
       </div>
 
-      <Card className="bg-background/60 backdrop-blur-xl border-border shadow-2xl rounded-3xl overflow-hidden">
-        <CardHeader className="pb-0">
-          <div className="flex justify-center">
-            <ScrollArea className="w-full whitespace-nowrap pb-4">
-              <div className="flex space-x-2 px-4 justify-center min-w-max">
-                {tabs.map((tab) => (
-                  <button
-                    key={tab.id}
-                    onClick={() => setActiveTab(tab.id)}
-                    className={cn(
-                      "flex items-center gap-2 px-4 py-2.5 rounded-full text-sm font-medium transition-all duration-300",
-                      activeTab === tab.id
-                        ? "bg-primary text-primary-foreground shadow-lg shadow-primary/25 scale-105"
-                        : "bg-accent/50 text-muted-foreground hover:bg-accent hover:text-foreground"
-                    )}
-                  >
-                    <tab.icon className="h-4 w-4" />
-                    {tab.label}
-                  </button>
-                ))}
-              </div>
-              <ScrollBar orientation="horizontal" className="invisible" />
-            </ScrollArea>
-          </div>
-        </CardHeader>
+      <div className="relative z-10 space-y-6 flex flex-col max-w-3xl mx-auto w-full p-4 md:p-6 h-full">
+        <div className="flex items-center justify-between mb-2">
+            <div>
+                <h1 className="text-4xl font-black tracking-tight text-foreground drop-shadow-sm">
+                    Date Tools
+                </h1>
+                <p className="text-sm font-bold text-muted-foreground uppercase tracking-widest mt-2">Calculators & Countdowns</p>
+            </div>
+        </div>
 
-        <CardContent className="p-6 pt-2">
-          <div className="mt-4 min-h-[400px]">
+        {/* Segmented Pill Navigation */}
+        <div className="w-full overflow-x-auto no-scrollbar pb-2 -mx-4 px-4 md:mx-0 md:px-0">
+            <div className="flex p-1.5 bg-card/40 backdrop-blur-xl border border-white/10 rounded-[2rem] w-max min-w-full shadow-lg">
+                {tabs.map((tab) => (
+                    <button
+                        key={tab.id}
+                        onClick={() => setActiveTab(tab.id)}
+                        className={cn(
+                            "flex items-center gap-2 px-5 py-3 rounded-full text-sm font-bold transition-all duration-300 whitespace-nowrap",
+                            activeTab === tab.id
+                                ? "bg-white text-black shadow-md scale-[1.02]"
+                                : "text-muted-foreground hover:bg-white/5 hover:text-foreground"
+                        )}
+                    >
+                        <tab.icon className={cn("h-4 w-4", activeTab === tab.id ? "text-black" : "text-muted-foreground")} />
+                        {tab.label}
+                    </button>
+                ))}
+            </div>
+        </div>
+
+        {/* Main Content Area */}
+        <div className="flex-1 bg-card/40 backdrop-blur-2xl border border-white/10 shadow-2xl rounded-[2.5rem] p-6 md:p-8 relative overflow-hidden">
             <AnimatePresence mode="wait">
               <motion.div
                 key={activeTab}
-                initial={{ opacity: 0, x: 10 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -10 }}
-                transition={{ duration: 0.2 }}
+                initial={{ opacity: 0, y: 10, filter: "blur(4px)" }}
+                animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+                exit={{ opacity: 0, y: -10, filter: "blur(4px)" }}
+                transition={{ duration: 0.3 }}
+                className="h-full"
               >
                 {activeTab === "difference" && <DateDifferenceCalculator />}
                 {activeTab === "add-sub" && <AddSubtractCalculator />}
                 {activeTab === "age" && <AgeCalculator />}
                 {activeTab === "work-days" && <WorkDaysCalculator />}
                 {activeTab === "countdown" && <CountdownCalculator />}
+                {activeTab === "festivals" && <FestivalTracker />}
                 {activeTab === "week-num" && <WeekNumberCalculator />}
               </motion.div>
             </AnimatePresence>
-          </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 }

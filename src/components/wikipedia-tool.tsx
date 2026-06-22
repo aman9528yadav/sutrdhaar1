@@ -121,7 +121,7 @@ export function WikipediaTool() {
             <div className="flex flex-col gap-3">
                 <h1 className="text-2xl font-black tracking-tight text-foreground flex items-center gap-2">
                     <Book className="w-6 h-6 text-primary" />
-                    Wikipedia
+                    Gyaan
                 </h1>
                 
                 <div className="relative w-full">
@@ -280,7 +280,7 @@ export function WikipediaTool() {
                         className="flex-1 flex flex-col items-center justify-center p-12 text-center opacity-60"
                     >
                         <Book className="w-16 h-16 text-muted-foreground/30 mb-4" />
-                        <h3 className="text-lg font-semibold text-foreground mb-1">Wikipedia Search</h3>
+                        <h3 className="text-lg font-semibold text-foreground mb-1">Gyaan Search</h3>
                         <p className="text-sm text-muted-foreground max-w-[250px]">Look up any topic to read a quick summary directly in the app.</p>
                     </motion.div>
                 )}

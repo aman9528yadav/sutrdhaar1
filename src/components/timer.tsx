@@ -59,6 +59,7 @@ export function Timer() {
     const [isEditingTime, setIsEditingTime] = useState(false);
     const [editMinutes, setEditMinutes] = useState("");
     const [sessionCompleted, setSessionCompleted] = useState(false);
+    const [isFullscreen, setIsFullscreen] = useState(false);
     const inputRef = useRef<HTMLInputElement>(null);
 
     // Sync theme with Timer mode/settings on mount if not active
@@ -186,83 +187,139 @@ export function Timer() {
         );
     }
 
+    // Fullscreen Overlay Support
+    if (isFullscreen) {
+        // Calculate true hours, minutes, seconds for digital display
+        const absSecs = Math.abs(totalSeconds);
+        const h = Math.floor(absSecs / 3600);
+        const m = Math.floor((absSecs % 3600) / 60);
+        const s = absSecs % 60;
+        
+        const timeString = h > 0 
+            ? `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`
+            : `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+
+        return (
+            <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-black transition-colors duration-500">
+                <Button variant="ghost" size="icon" className="absolute top-6 right-6 text-white/50 hover:text-white" onClick={() => setIsFullscreen(false)}>
+                    <Minimize2 className="h-8 w-8" />
+                </Button>
+                
+                <div className="font-mono tabular-nums tracking-tighter font-black leading-none drop-shadow-xl select-none text-[25vw] sm:text-[22vw] text-white w-full text-center px-4">
+                    {timeString}
+                </div>
+                
+                {isPaused && isActive && (
+                    <div className="absolute top-1/4 text-sm font-black uppercase tracking-widest text-white/50 animate-pulse">
+                        PAUSED
+                    </div>
+                )}
+
+                <div className="absolute bottom-12 flex gap-8">
+                    {!isActive ? (
+                        <Button 
+                            size="icon"
+                            className="h-16 w-16 rounded-full bg-white/10 hover:bg-white/20 text-white border border-white/20"
+                            onClick={handleStart}
+                        >
+                            <Play className="h-8 w-8 fill-current ml-1" />
+                        </Button>
+                    ) : (
+                        <>
+                            <Button 
+                                size="icon"
+                                className="h-16 w-16 rounded-full bg-white/20 hover:bg-white/30 text-white border border-white/20"
+                                onClick={handleReset}
+                            >
+                                <Square className="w-6 h-6 fill-current" />
+                            </Button>
+                            <Button 
+                                size="icon"
+                                className="h-16 w-16 rounded-full bg-white text-black hover:bg-white/90"
+                                onClick={handlePauseResume}
+                            >
+                                {isPaused ? <Play className="h-8 w-8 fill-current ml-1" /> : <Pause className="h-8 w-8 fill-current" />}
+                            </Button>
+                        </>
+                    )}
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className={cn(
-            "flex flex-col w-full h-[calc(100vh-4rem)] md:h-[calc(100vh-8rem)] overflow-y-auto pb-24 md:pb-6 transition-colors duration-700 rounded-3xl relative",
-            isActive ? "bg-background/95 backdrop-blur-xl" : "bg-transparent"
+            "flex flex-col w-full h-[calc(100vh-4rem)] md:h-[calc(100vh-8rem)] overflow-hidden transition-colors duration-700 rounded-3xl relative",
+            isActive ? getThemeBgClass() : "bg-background"
         )}>
-            {/* Background Tint for Active Mode */}
-            {isActive && (
-                <div className={cn(
-                    "absolute inset-0 opacity-5 pointer-events-none transition-colors duration-1000",
-                    getThemeBgClass()
-                )} />
-            )}
-
-            {/* Top Nav (Inline Stats) */}
+            {/* Top Stats / Fullscreen Toggle */}
             <div className={cn(
-                "flex items-center justify-between p-6 transition-opacity duration-500 z-10",
-                isActive ? "opacity-0 pointer-events-none h-0 p-0 overflow-hidden" : "opacity-100"
+                "flex items-center justify-between p-4 px-6 transition-all duration-500 z-10 shrink-0",
+                isActive ? "opacity-0 -translate-y-full pointer-events-none absolute" : "opacity-100"
             )}>
-                <div>
-                    <h1 className="text-2xl font-bold text-foreground">Focus Timer</h1>
-                </div>
-                <div className="flex gap-4">
-                    <div className="flex items-center gap-1.5 bg-card/50 px-3 py-1.5 rounded-full border border-border/50">
+                <div className="flex gap-3">
+                    <div className="flex items-center gap-1.5 bg-card/50 backdrop-blur-xl px-3 py-1 rounded-full border border-border/50">
                         <Flame className="w-4 h-4 text-orange-500" />
-                        <span className="text-sm font-bold">{profile.stats.streak || 0}</span>
+                        <span className="text-xs font-bold">{profile.stats.streak || 0}</span>
                     </div>
-                    <div className="flex items-center gap-1.5 bg-card/50 px-3 py-1.5 rounded-full border border-border/50">
-                        <Target className="w-4 h-4 text-primary" />
-                        <span className="text-sm font-bold">{profile.todos.filter(t => t.completed && new Date(t.completedAt!).toDateString() === new Date().toDateString()).length} Today</span>
+                    <div className="flex items-center gap-1.5 bg-card/50 backdrop-blur-xl px-3 py-1 rounded-full border border-border/50">
+                        <Target className="w-4 h-4 text-emerald-500" />
+                        <span className="text-xs font-bold">{profile.todos.filter(t => t.completed && new Date(t.completedAt!).toDateString() === new Date().toDateString()).length}</span>
                     </div>
                 </div>
             </div>
 
+            {/* Always Visible Fullscreen Toggle */}
+            <Button 
+                variant="ghost" 
+                size="icon" 
+                className={cn(
+                    "absolute top-4 right-6 z-50 rounded-full transition-colors",
+                    isActive ? "text-white/50 hover:text-white hover:bg-white/10" : "text-muted-foreground hover:bg-muted"
+                )} 
+                onClick={() => setIsFullscreen(true)}
+            >
+                <Maximize2 className="h-5 w-5" />
+            </Button>
+
             {/* Main Center Timer */}
-            <div className="flex-1 flex flex-col items-center justify-center relative z-10">
+            <div className={cn("flex-1 flex flex-col items-center justify-center relative z-10 transition-all duration-700", isActive ? "mt-0" : "mt-4")}>
+                
                 <AnimatePresence>
-                    {isActive && (
+                    {isActive && activeTask && (
                         <motion.div 
-                            initial={{ opacity: 0, y: 10 }}
+                            initial={{ opacity: 0, y: -20 }}
                             animate={{ opacity: 1, y: 0 }}
-                            className="mb-8 flex flex-col items-center justify-center gap-3 z-20"
+                            className="absolute top-10 px-5 py-2 bg-white/20 backdrop-blur-xl shadow-sm rounded-full text-sm font-semibold text-white flex items-center gap-2 z-20"
                         >
-                            {activeTask && (
-                                <div className="px-4 py-1.5 bg-card/80 border border-border/50 shadow-sm rounded-full text-sm font-semibold text-foreground flex items-center gap-2">
-                                    <div className={cn("w-2 h-2 rounded-full shadow-[0_0_8px_currentColor]", getThemeBgClass(), !isPaused && "animate-pulse")} />
-                                    <span className="truncate max-w-[250px]">{activeTask.text}</span>
-                                </div>
-                            )}
-                            <div className="text-muted-foreground font-bold text-xs tracking-[0.2em] uppercase">
-                                {currentTheme.replace('_', ' ')} • {mode === 'interval' ? (isWorkPhase ? intervalSettings.workMinutes : intervalSettings.restMinutes) : Math.floor(initialTime / 60)} min
-                            </div>
+                            <div className={cn("w-2.5 h-2.5 rounded-full bg-white shadow-[0_0_8px_white]", !isPaused && "animate-pulse")} />
+                            <span className="truncate max-w-[200px]">{activeTask.text}</span>
                         </motion.div>
                     )}
                 </AnimatePresence>
 
-                <div className="relative w-[320px] h-[320px] sm:w-[400px] sm:h-[400px] flex items-center justify-center group">
+                <div className="relative w-[85vw] h-[85vw] max-w-[350px] max-h-[350px] flex items-center justify-center group shrink-0">
                     {/* Circular Progress SVG */}
                     <svg className="absolute w-full h-full transform -rotate-90" viewBox="0 0 320 320">
                         {/* Background Circle */}
                         <circle
                             cx="160" cy="160" r={radius}
                             stroke="currentColor"
-                            strokeWidth="8"
+                            strokeWidth="6"
                             fill="transparent"
-                            className="text-secondary/50"
+                            className={isActive ? "text-white/20" : "text-muted/30"}
                         />
                         {/* Progress Circle */}
                         <circle
                             cx="160" cy="160" r={radius}
                             stroke="currentColor"
-                            strokeWidth="12"
+                            strokeWidth="14"
                             fill="transparent"
                             strokeLinecap="round"
                             className={cn(
-                                "transition-[stroke-dashoffset] duration-1000 ease-linear drop-shadow-[0_0_15px_rgba(currentColor,0.5)]",
-                                getThemeColorClass(),
-                                isPaused && isActive ? "opacity-30" : "opacity-100"
+                                "transition-[stroke-dashoffset] duration-1000 ease-linear",
+                                isActive ? "text-white drop-shadow-[0_0_12px_rgba(255,255,255,0.4)]" : getThemeColorClass(),
+                                isPaused && isActive ? "opacity-40" : "opacity-100"
                             )}
                             style={{
                                 strokeDasharray: circumference,
@@ -274,18 +331,18 @@ export function Timer() {
                     {/* Inner Time Display */}
                     <div className="absolute inset-0 flex flex-col items-center justify-center">
                         {!isActive && mode === 'interval' && (
-                            <div className={cn("mb-2 text-xs font-bold uppercase tracking-widest bg-secondary/80 px-3 py-1 rounded-full", getThemeColorClass())}>
+                            <div className={cn("mb-3 text-[10px] font-bold uppercase tracking-widest bg-card/80 px-3 py-1 rounded-full border border-border/50", getThemeColorClass())}>
                                 Round {currentRound} / {intervalSettings.rounds}
                             </div>
                         )}
                         {isActive && mode === 'interval' && (
-                            <div className={cn("mb-2 text-xs font-bold uppercase tracking-widest bg-secondary/80 px-3 py-1 rounded-full", getThemeColorClass())}>
+                            <div className="mb-3 text-[10px] font-bold uppercase tracking-widest bg-white/20 text-white px-3 py-1 rounded-full backdrop-blur-md">
                                 {isWorkPhase ? 'Focusing' : 'Resting'}
                             </div>
                         )}
 
                         {isEditingTime && !isActive ? (
-                            <div className="flex items-center bg-background rounded-2xl shadow-inner px-4 py-2 border border-border">
+                            <div className="flex items-center bg-card rounded-3xl shadow-inner px-4 py-2 border border-border/50">
                                 <input
                                     ref={inputRef}
                                     type="number"
@@ -295,17 +352,17 @@ export function Timer() {
                                     onChange={(e) => setEditMinutes(e.target.value)}
                                     onBlur={handleEditTimeSubmit}
                                     onKeyDown={(e) => e.key === 'Enter' && handleEditTimeSubmit()}
-                                    className="w-32 bg-transparent text-center font-mono text-6xl font-black text-foreground focus:outline-none placeholder:text-muted"
+                                    className="w-28 bg-transparent text-center font-mono text-6xl font-black text-foreground focus:outline-none placeholder:text-muted"
                                     placeholder="25"
                                     autoFocus
                                 />
-                                <span className="text-xl font-bold text-muted-foreground ml-2 mt-4">min</span>
                             </div>
                         ) : (
                             <div 
                                 className={cn(
-                                    "font-mono tabular-nums tracking-tighter leading-none transition-all drop-shadow-md select-none",
-                                    "text-7xl sm:text-[100px] font-black text-foreground",
+                                    "font-mono tabular-nums tracking-tighter leading-none transition-all drop-shadow-sm select-none",
+                                    "text-7xl sm:text-[90px] font-black",
+                                    isActive ? "text-white" : "text-foreground",
                                     !isActive && "cursor-pointer hover:scale-105 transition-transform"
                                 )}
                                 onClick={() => {
@@ -320,13 +377,13 @@ export function Timer() {
                         )}
 
                         {isPaused && isActive && (
-                            <div className="absolute bottom-[20%] text-xs font-black uppercase tracking-widest text-amber-500 bg-amber-500/10 px-4 py-1 rounded-full animate-pulse shadow-sm">
+                            <div className="absolute bottom-[20%] text-[10px] font-black uppercase tracking-widest text-white bg-white/20 px-3 py-1 rounded-full animate-pulse backdrop-blur-md">
                                 PAUSED
                             </div>
                         )}
 
                         {!isActive && !isEditingTime && (
-                            <div className="mt-4 text-sm font-medium text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity">
+                            <div className="mt-6 text-[11px] font-semibold tracking-wider text-muted-foreground uppercase opacity-0 group-hover:opacity-100 transition-opacity">
                                 Tap time to edit
                             </div>
                         )}
@@ -334,100 +391,97 @@ export function Timer() {
                 </div>
             </div>
 
-            {/* Setup Controls (Hidden when active) */}
-            <div className={cn(
-                "flex flex-col items-center gap-6 pb-6 px-6 transition-all duration-500 transform z-10",
-                isActive ? "translate-y-20 opacity-0 pointer-events-none h-0 overflow-hidden" : "translate-y-0 opacity-100"
-            )}>
-                {/* Mode Selector Chips */}
-                <div className="grid grid-cols-3 gap-3 w-full max-w-md">
-                    <PresetChip 
-                        label="Pomodoro" 
-                        timeLabel="25m + 5m" 
-                        active={currentTheme === 'pomodoro'} 
-                        themeColor="orange"
-                        onClick={() => applyPreset('pomodoro')} 
-                    />
-                    <PresetChip 
-                        label="Deep Work" 
-                        timeLabel="90m" 
-                        active={currentTheme === 'deep_work'} 
-                        themeColor="blue"
-                        onClick={() => applyPreset('deep_work')} 
-                    />
-                    <PresetChip 
-                        label="Break" 
-                        timeLabel="5m" 
-                        active={currentTheme === 'break'} 
-                        themeColor="emerald"
-                        onClick={() => applyPreset('break')} 
-                    />
-                </div>
+            {/* Bottom Controls Area */}
+            <div className="w-full max-w-sm mx-auto px-6 pb-6 pt-4 shrink-0 relative z-20">
+                {/* Immersive Controls (Only show when Inactive) */}
+                <div className={cn(
+                    "flex flex-col gap-5 transition-all duration-500",
+                    isActive ? "opacity-0 h-0 overflow-hidden translate-y-10" : "opacity-100"
+                )}>
+                    {/* Segmented Presets */}
+                    <div className="flex p-1 bg-card/50 backdrop-blur-xl border border-border/50 rounded-2xl">
+                        {[
+                            { id: 'pomodoro', label: 'Pomodoro' },
+                            { id: 'deep_work', label: 'Deep Work' },
+                            { id: 'break', label: 'Break' },
+                        ].map(preset => (
+                            <button
+                                key={preset.id}
+                                onClick={() => applyPreset(preset.id as TimerTheme)}
+                                className={cn(
+                                    "flex-1 py-2 rounded-xl text-xs font-bold transition-all duration-300",
+                                    currentTheme === preset.id
+                                        ? cn("text-white shadow-sm", getThemeBgClass())
+                                        : "text-muted-foreground hover:bg-muted/50"
+                                )}
+                            >
+                                {preset.label}
+                            </button>
+                        ))}
+                    </div>
 
-                {/* Minimal Secondary Controls */}
-                <div className="flex items-center gap-4 bg-secondary/30 p-2 rounded-2xl border border-border/50">
-                    <Button 
-                        variant="ghost" size="icon" 
-                        className={cn("rounded-xl", soundEnabled ? "text-primary" : "text-muted-foreground")}
-                        onClick={() => setSoundEnabled(!soundEnabled)}
-                    >
-                        {soundEnabled ? <Volume2 className="h-5 w-5" /> : <VolumeX className="h-5 w-5" />}
-                    </Button>
-                    <div className="w-px h-6 bg-border/50" />
-                    
-                    <Select value={selectedTaskId} onValueChange={setSelectedTaskId}>
-                        <SelectTrigger className="w-[200px] border-none bg-transparent shadow-none focus:ring-0 px-2 h-10 font-medium">
-                            <SelectValue placeholder="Link a task..." />
-                        </SelectTrigger>
-                        <SelectContent className="rounded-xl border-border/50">
-                            <SelectItem value="none"><span className="text-muted-foreground">No Task Linked</span></SelectItem>
-                            {profile.todos.filter(t => !t.completed).map(t => (
-                                <SelectItem key={t.id} value={t.id}><span className="truncate">{t.text}</span></SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
+                    {/* Quick Tools */}
+                    <div className="flex items-center gap-2">
+                        <Button 
+                            variant="outline" 
+                            size="icon" 
+                            className={cn("rounded-2xl shrink-0 h-12 w-12 border-border/50 bg-card/50 backdrop-blur-xl", soundEnabled ? "text-primary" : "text-muted-foreground")}
+                            onClick={() => setSoundEnabled(!soundEnabled)}
+                        >
+                            {soundEnabled ? <Volume2 className="h-5 w-5" /> : <VolumeX className="h-5 w-5" />}
+                        </Button>
+                        
+                        <div className="flex-1">
+                            <Select value={selectedTaskId} onValueChange={setSelectedTaskId}>
+                                <SelectTrigger className="w-full border-border/50 bg-card/50 backdrop-blur-xl shadow-none h-12 rounded-2xl font-semibold text-xs px-4">
+                                    <SelectValue placeholder="Link to Task..." />
+                                </SelectTrigger>
+                                <SelectContent className="rounded-2xl border-border/50">
+                                    <SelectItem value="none"><span className="text-muted-foreground">No Task Linked</span></SelectItem>
+                                    {profile.todos.filter(t => !t.completed).map(t => (
+                                        <SelectItem key={t.id} value={t.id}><span className="truncate">{t.text}</span></SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    </div>
 
-                    <div className="w-px h-6 bg-border/50" />
-                    <Button variant="ghost" size="icon" className="rounded-xl text-muted-foreground" onClick={() => setShowSettings(!showSettings)}>
-                        <Settings className="h-5 w-5" />
-                    </Button>
-                </div>
-            </div>
-
-            {/* Sticky Bottom Actions */}
-            <div className="px-6 pb-12 sm:pb-6 mt-auto w-full max-w-md mx-auto relative z-20">
-                {!isActive ? (
                     <Button 
                         className={cn(
-                            "w-full h-16 rounded-2xl text-xl font-black text-white shadow-xl hover:scale-[1.02] transition-all",
+                            "w-full h-16 rounded-3xl text-lg font-black text-white shadow-2xl hover:scale-[1.02] transition-all",
                             getThemeBgClass(),
-                            `shadow-${getThemeColorClass().split('-')[1]}-500/30`
+                            `shadow-${getThemeColorClass().split('-')[1]}-500/40`
                         )}
                         onClick={handleStart}
                     >
-                        START FOCUS
+                        START
                     </Button>
-                ) : (
-                    <div className="grid grid-cols-[1fr_auto] gap-3">
+                </div>
+
+                {/* Active Controls */}
+                <div className={cn(
+                    "flex items-center justify-center gap-4 transition-all duration-500",
+                    !isActive ? "opacity-0 h-0 overflow-hidden translate-y-10 absolute" : "opacity-100"
+                )}>
+                    <Button 
+                        className={cn(
+                            "h-20 w-20 rounded-full shadow-2xl transition-all hover:scale-105 active:scale-95 border-none",
+                            isPaused ? "bg-white text-black" : "bg-white/20 text-white backdrop-blur-md"
+                        )}
+                        onClick={handlePauseResume}
+                    >
+                        {isPaused ? <Play className="w-8 h-8 ml-1 fill-current" /> : <Pause className="w-8 h-8 fill-current" />}
+                    </Button>
+                    {isPaused && (
                         <Button 
-                            className={cn(
-                                "h-16 rounded-2xl text-xl font-black text-white shadow-xl hover:scale-[1.02] transition-all",
-                                isPaused ? getThemeBgClass() : "bg-amber-500 hover:bg-amber-600 shadow-amber-500/30"
-                            )}
-                            onClick={handlePauseResume}
-                        >
-                            {isPaused ? <Play className="w-6 h-6 mr-2 fill-current" /> : <Pause className="w-6 h-6 mr-2 fill-current" />}
-                            {isPaused ? "RESUME" : "PAUSE"}
-                        </Button>
-                        <Button 
-                            variant="destructive" 
-                            className="h-16 w-16 rounded-2xl"
+                            variant="outline" 
+                            className="h-16 w-16 rounded-full border-2 border-white/30 text-white hover:bg-white/20 backdrop-blur-md transition-all hover:scale-105"
                             onClick={handleReset}
                         >
                             <Square className="w-6 h-6 fill-current" />
                         </Button>
-                    </div>
-                )}
+                    )}
+                </div>
             </div>
         </div>
     );

@@ -5,6 +5,7 @@ import { ThemeProvider } from '@/components/theme-provider';
 import { CustomThemeHandler } from '@/components/custom-theme-handler';
 import { TimerProvider } from '@/context/TimerContext';
 import { ProfileProvider } from '@/context/ProfileContext';
+import { GoogleTranslate } from '@/components/google-translate';
 
 export const metadata: Metadata = {
   title: 'Sutradhaar Tools',
@@ -34,6 +35,7 @@ export default function RootLayout({
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
       </head>
       <body suppressHydrationWarning>
+        <GoogleTranslate />
         <ThemeProvider
           attribute="class"
           defaultTheme="theme-arctic"
