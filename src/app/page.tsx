@@ -49,6 +49,7 @@ export default function AppRoot() {
   const { maintenance, isLoading: isMaintenanceLoading } = useMaintenance();
   const [activeTool, setActiveTool] = useState<string>('dashboard');
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [isBypassed, setIsBypassed] = useState(false);
   
   const isOwner = profile.email === 'amanyadavyadav9458@gmail.com';
 
@@ -173,8 +174,8 @@ export default function AppRoot() {
     );
   }
 
-  if (maintenance.isActive && !isOwner) {
-    return <MaintenanceOverlay endTime={maintenance.endTime} isOwner={isOwner} message={maintenance.message} type={maintenance.type} />;
+  if (maintenance.isActive && !isOwner && !isBypassed) {
+    return <MaintenanceOverlay endTime={maintenance.endTime} isOwner={isOwner} message={maintenance.message} type={maintenance.type} onBypass={() => setIsBypassed(true)} />;
   }
 
   if (!profile.isAuthenticated) {

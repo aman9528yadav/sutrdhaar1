@@ -6,9 +6,29 @@ import { Settings, Clock, AlertTriangle, ShieldCheck, Hammer, Activity, ArrowUpC
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/lib/supabase';
 
-export function MaintenanceOverlay({ endTime, isOwner = false, message, type }: { endTime: number | null, isOwner?: boolean, message?: string | null, type?: 'update' | 'bugfix' | 'checkup' | null }) {
+export function MaintenanceOverlay({ endTime, isOwner = false, message, type, onBypass }: { endTime: number | null, isOwner?: boolean, message?: string | null, type?: 'update' | 'bugfix' | 'checkup' | null, onBypass?: () => void }) {
   const [timeLeft, setTimeLeft] = useState<{ days: number; hours: number; minutes: number; seconds: number } | null>(null);
   const [isTimerFinished, setIsTimerFinished] = useState(false);
+  const [clickCount, setClickCount] = useState(0);
+
+  const handleIconClick = () => {
+    setClickCount(prev => {
+      const next = prev + 1;
+      if (next >= 5) {
+        onBypass?.();
+        return 0;
+      }
+      return next;
+    });
+  };
+
+  useEffect(() => {
+    if (clickCount === 0) return;
+    const timer = setTimeout(() => {
+      setClickCount(0);
+    }, 2000);
+    return () => clearTimeout(timer);
+  }, [clickCount]);
 
   useEffect(() => {
     if (!endTime) return;
@@ -90,7 +110,10 @@ export function MaintenanceOverlay({ endTime, isOwner = false, message, type }: 
       >
         <div className="w-24 h-24 mx-auto relative">
           <div className="absolute inset-0 bg-primary/20 rounded-full animate-ping opacity-75" />
-          <div className="relative w-full h-full bg-card border border-white/10 rounded-full flex items-center justify-center shadow-2xl backdrop-blur-xl">
+          <div 
+            onClick={handleIconClick}
+            className="relative w-full h-full bg-card border border-white/10 rounded-full flex items-center justify-center shadow-2xl backdrop-blur-xl cursor-default select-none"
+          >
             {type === 'update' && <ArrowUpCircle className="w-10 h-10 text-primary animate-pulse" />}
             {type === 'bugfix' && <Hammer className="w-10 h-10 text-primary animate-bounce" />}
             {type === 'checkup' && <Activity className="w-10 h-10 text-primary animate-pulse" />}
