@@ -158,6 +158,10 @@ export function SettingsPage({ onClose }: { onClose?: () => void }) {
   const [devPasswordInput, setDevPasswordInput] = useState('');
   const [devPasswordError, setDevPasswordError] = useState(false);
 
+  // Change Developer Password state
+  const [newDevPassword, setNewDevPassword] = useState('');
+  const [confirmDevPassword, setConfirmDevPassword] = useState('');
+
   const handleGenerateCode = async () => {
     const code = 'SUTRA-' + Math.random().toString(36).substring(2, 6).toUpperCase() + Math.random().toString(36).substring(2, 6).toUpperCase();
     const durationNum = parseInt(durationDays) || 30;
@@ -1064,6 +1068,23 @@ export function SettingsPage({ onClose }: { onClose?: () => void }) {
 
                     <motion.div
                       whileTap={{ scale: 0.98 }}
+                      onClick={() => setActiveAdvancedCategory('change-password')}
+                      className="flex items-center justify-between p-4 rounded-2xl border border-amber-500/20 bg-amber-500/5 hover:bg-amber-500/10 transition-colors cursor-pointer"
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="p-2.5 rounded-xl bg-amber-500/10">
+                          <Lock className="w-5 h-5 text-amber-500" />
+                        </div>
+                        <div>
+                          <h3 className="font-semibold text-foreground text-sm">Change Developer Password</h3>
+                          <p className="text-xs text-muted-foreground mt-0.5">Update access key for developer mode</p>
+                        </div>
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                    </motion.div>
+
+                    <motion.div
+                      whileTap={{ scale: 0.98 }}
                       onClick={() => setActiveAdvancedCategory('faqs')}
                       className="flex items-center justify-between p-4 rounded-2xl border border-purple-500/20 bg-purple-500/5 hover:bg-purple-500/10 transition-colors cursor-pointer"
                     >
@@ -1781,6 +1802,77 @@ export function SettingsPage({ onClose }: { onClose?: () => void }) {
                     {activeAdvancedCategory === 'faqs' && (
                       <FaqManager />
                     )}
+
+                    {/* Change Developer Password Screen */}
+                    {activeAdvancedCategory === 'change-password' && (
+                      <div className="space-y-5">
+                        <div className="p-6 rounded-[2rem] border border-amber-500/20 bg-amber-500/5 backdrop-blur-xl shadow-lg space-y-5">
+                          <div className="pb-3 border-b border-amber-500/10">
+                            <Label className="font-bold text-foreground text-base">Change Developer Password</Label>
+                            <p className="text-xs text-muted-foreground mt-0.5">Set a custom password required to unlock Developer Mode</p>
+                          </div>
+
+                          <form
+                            onSubmit={(e) => {
+                              e.preventDefault();
+                              if (!newDevPassword.trim()) {
+                                toast({ title: "Password cannot be empty", variant: "destructive" });
+                                return;
+                              }
+                              if (newDevPassword.length < 4) {
+                                toast({ title: "Password too short", description: "Must be at least 4 characters", variant: "destructive" });
+                                return;
+                              }
+                              if (newDevPassword !== confirmDevPassword) {
+                                toast({ title: "Passwords do not match", variant: "destructive" });
+                                return;
+                              }
+
+                              localStorage.setItem('sutra_dev_password', newDevPassword.trim());
+                              setNewDevPassword('');
+                              setConfirmDevPassword('');
+                              toast({
+                                title: "Password Updated Successfully! 🔐",
+                                description: "Your custom developer password is now active.",
+                              });
+                              setActiveAdvancedCategory(null);
+                            }}
+                            className="space-y-4"
+                          >
+                            <div className="space-y-1.5">
+                              <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">New Developer Password</Label>
+                              <Input
+                                type="password"
+                                placeholder="Enter new developer password"
+                                value={newDevPassword}
+                                onChange={e => setNewDevPassword(e.target.value)}
+                                className="h-11 rounded-xl text-xs bg-background/50 border-border/50"
+                              />
+                            </div>
+
+                            <div className="space-y-1.5">
+                              <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Confirm New Password</Label>
+                              <Input
+                                type="password"
+                                placeholder="Re-enter new password"
+                                value={confirmDevPassword}
+                                onChange={e => setConfirmDevPassword(e.target.value)}
+                                className="h-11 rounded-xl text-xs bg-background/50 border-border/50"
+                              />
+                            </div>
+
+                            <div className="pt-2">
+                              <Button
+                                type="submit"
+                                className="w-full h-11 rounded-2xl bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 hover:from-amber-600 hover:to-orange-600 text-white font-bold text-xs shadow-lg shadow-orange-500/20"
+                              >
+                                Save New Password
+                              </Button>
+                            </div>
+                          </form>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -1808,8 +1900,8 @@ export function SettingsPage({ onClose }: { onClose?: () => void }) {
           <form
             onSubmit={(e) => {
               e.preventDefault();
-              // Authorized developer passwords
-              const validPasswords = ['aman@dev', 'admin123', 'sutra2026', 'developer'];
+              const customPass = localStorage.getItem('sutra_dev_password');
+              const validPasswords = [customPass, 'aman@dev', 'admin123', 'sutra2026', 'developer'].filter(Boolean).map(p => p?.toLowerCase());
               if (validPasswords.includes(devPasswordInput.trim().toLowerCase())) {
                 setProfile(prev => ({
                   ...prev,
