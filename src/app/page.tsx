@@ -43,6 +43,7 @@ const ProgressionPage = dynamic(() => import('@/components/progression-page').th
 const WikipediaTool = dynamic(() => import('@/components/wikipedia-tool').then(mod => ({ default: mod.WikipediaTool })), { ssr: false });
 const QrCodeTool = dynamic(() => import('@/components/qr-code-tool').then(mod => ({ default: mod.QrCodeTool })), { ssr: false });
 const PdfToolsPage = dynamic(() => import('@/components/pdf-tools-page').then(mod => ({ default: mod.PdfToolsPage })), { ssr: false });
+const RandomizerTool = dynamic(() => import('@/components/randomizer-tool').then(mod => ({ default: mod.RandomizerTool })), { ssr: false });
 import { WelcomeTour } from '@/components/welcome-tour';
 import { GlobalSearchDialog } from '@/components/global-search-dialog';
 
@@ -172,6 +173,7 @@ export default function AppRoot() {
       case 'admin-inbox': return <AdminInboxPage />;
       case 'qr-code': return <QrCodeTool />;
       case 'pdf': return <PdfToolsPage />;
+      case 'randomizer': return <RandomizerTool />;
       case 'auth': return <AuthPage onLoginSuccess={() => setActiveTool('dashboard')} />;
       default: return null;
     }

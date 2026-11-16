@@ -6,7 +6,7 @@ import {
     Timer, Hourglass, Wallet, BarChart2, Gem, Info, BookText,
     CheckSquare, DollarSign, Percent, FileText, Image, Music,
     Video, QrCode, Hash, Palette, FileCode, KeyRound, Search,
-    ArrowUpRight, LayoutGrid, Languages, Lock, Globe, ShieldCheck
+    ArrowUpRight, LayoutGrid, Languages, Lock, Globe, ShieldCheck, Dices
 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -45,6 +45,7 @@ export const allTools = [
     { id: 'membership', icon: Gem, label: 'Membership', category: 'Utilities', color: 'text-amber-500', bg: 'bg-amber-500/10' },
     { id: 'qr-code', icon: QrCode, label: 'QR Studio', category: 'Utilities', color: 'text-blue-500', bg: 'bg-blue-500/10' },
     { id: 'pdf', icon: FileText, label: 'PDF Maker', category: 'Utilities', color: 'text-red-500', bg: 'bg-red-500/10' },
+    { id: 'randomizer', icon: Dices, label: '3D Dice & Toss', category: 'Utilities', color: 'text-purple-500', bg: 'bg-purple-500/10' },
 
     { id: 'image-tools', icon: Image, label: 'Image Tools', category: 'Coming Soon', color: 'text-violet-500', bg: 'bg-violet-500/10', comingSoon: true },
     { id: 'color-picker', icon: Palette, label: 'Color Picker', category: 'Coming Soon', color: 'text-fuchsia-500', bg: 'bg-fuchsia-500/10', comingSoon: true },
