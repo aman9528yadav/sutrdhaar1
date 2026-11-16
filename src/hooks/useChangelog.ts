@@ -46,12 +46,19 @@ const defaultAboutConfig: AboutConfig = {
   ]
 };
 
+export interface DevCloudConfig {
+  bannedEmails?: string[];
+  stealthMode?: boolean;
+}
+
 export function useChangelog() {
   const [changelog, setChangelog] = useState<string>('');
   const [version, setVersion] = useState<string>('1.0.0');
   const [aboutConfig, setAboutConfig] = useState<AboutConfig>(defaultAboutConfig);
   const [globalNotifications, setGlobalNotifications] = useState<GlobalNotification[]>([]);
   const [devPassword, setDevPassword] = useState<string>('admin123');
+  const [bannedEmails, setBannedEmails] = useState<string[]>([]);
+  const [stealthMode, setStealthMode] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -82,6 +89,12 @@ export function useChangelog() {
             setAboutConfig(parsed.about || defaultAboutConfig);
             if (parsed.devPassword) {
               setDevPassword(parsed.devPassword);
+            }
+            if (Array.isArray(parsed.bannedEmails)) {
+              setBannedEmails(parsed.bannedEmails);
+            }
+            if (typeof parsed.stealthMode === 'boolean') {
+              setStealthMode(parsed.stealthMode);
             }
             
             const notifs = parsed.globalNotifications || [];
@@ -127,15 +140,15 @@ export function useChangelog() {
               setVersion(parsed.version || '1.0.0');
               setAboutConfig(parsed.about || defaultAboutConfig);
               setGlobalNotifications(parsed.globalNotifications || []);
+              if (Array.isArray(parsed.bannedEmails)) setBannedEmails(parsed.bannedEmails);
+              if (typeof parsed.stealthMode === 'boolean') setStealthMode(parsed.stealthMode);
+              if (parsed.devPassword) setDevPassword(parsed.devPassword);
             } catch (e) {
               setChangelog(newRecord.message);
               setVersion('1.0.0');
               setAboutConfig(defaultAboutConfig);
               setGlobalNotifications([]);
             }
-            setTimeout(() => {
-              window.location.reload();
-            }, 500);
           }
         }
       )
@@ -225,7 +238,9 @@ export function useChangelog() {
         content: changelog, 
         about: aboutConfig, 
         globalNotifications,
-        devPassword: newPassword 
+        devPassword: newPassword,
+        bannedEmails,
+        stealthMode,
       });
       const { error } = await supabase
         .from('maintenance')
@@ -241,17 +256,67 @@ export function useChangelog() {
     }
   };
 
+  const updateBannedEmails = async (newList: string[]) => {
+    try {
+      setBannedEmails(newList);
+      const payload = JSON.stringify({
+        version,
+        content: changelog,
+        about: aboutConfig,
+        globalNotifications,
+        devPassword,
+        bannedEmails: newList,
+        stealthMode,
+      });
+      const { error } = await supabase
+        .from('maintenance')
+        .upsert({ id: false, message: payload, is_active: false });
+      if (error) throw error;
+      return true;
+    } catch (e) {
+      console.error("Error updating banned emails:", e);
+      return false;
+    }
+  };
+
+  const updateStealthMode = async (enabled: boolean) => {
+    try {
+      setStealthMode(enabled);
+      const payload = JSON.stringify({
+        version,
+        content: changelog,
+        about: aboutConfig,
+        globalNotifications,
+        devPassword,
+        bannedEmails,
+        stealthMode: enabled,
+      });
+      const { error } = await supabase
+        .from('maintenance')
+        .upsert({ id: false, message: payload, is_active: false });
+      if (error) throw error;
+      return true;
+    } catch (e) {
+      console.error("Error updating stealth mode:", e);
+      return false;
+    }
+  };
+
   return { 
     changelog, 
     version, 
     aboutConfig, 
     globalNotifications, 
     devPassword,
+    bannedEmails,
+    stealthMode,
     isLoading, 
     updateChangelog, 
     updateAboutConfig, 
     addGlobalNotification, 
     deleteGlobalNotification,
-    updateDevPassword 
+    updateDevPassword,
+    updateBannedEmails,
+    updateStealthMode
   };
 }

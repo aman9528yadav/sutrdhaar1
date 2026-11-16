@@ -50,7 +50,7 @@ import {
 import { useTheme } from 'next-themes';
 import { EditWidgetsDialog } from './edit-widgets-dialog';
 import { FaqManager } from './faq-manager';
-import { Download, Upload, Trash2, HelpCircle, Copy, Check, Search, Layers, Clock, Mail, PauseCircle, PlayCircle, Lock, KeyRound } from 'lucide-react';
+import { Download, Upload, Trash2, HelpCircle, Copy, Check, Search, Layers, Clock, Mail, PauseCircle, PlayCircle, Lock, KeyRound, Radio, MessageSquare, DatabaseZap, RefreshCw, Send, CheckCircle2, UserX, ShieldOff, Eye, Ban } from 'lucide-react';
 import { hasUnlockedFeature } from '@/lib/level-system';
 import { useToast } from '@/hooks/use-toast';
 
@@ -121,7 +121,7 @@ function SettingRow({ icon: Icon, iconColor, title, description, children }: {
 export function SettingsPage({ onClose }: { onClose?: () => void }) {
   const { profile, setProfile, deleteAllUserData, updateDashboardWidgets, subscribeToPushNotifications } = useProfile();
   const { maintenance } = useMaintenance();
-  const { changelog, version, aboutConfig, globalNotifications, devPassword, isLoading, updateChangelog, updateAboutConfig, addGlobalNotification, deleteGlobalNotification, updateDevPassword } = useChangelog();
+  const { changelog, version, aboutConfig, globalNotifications, devPassword, bannedEmails, stealthMode, isLoading, updateChangelog, updateAboutConfig, addGlobalNotification, deleteGlobalNotification, updateDevPassword, updateBannedEmails, updateStealthMode } = useChangelog();
   const { setTheme, theme } = useTheme();
   const { toast } = useToast();
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
@@ -161,6 +161,61 @@ export function SettingsPage({ onClose }: { onClose?: () => void }) {
   // Change Developer Password state
   const [newDevPassword, setNewDevPassword] = useState('');
   const [confirmDevPassword, setConfirmDevPassword] = useState('');
+
+  // Secret Logo 5-click counter to reveal Developer Mode
+  const [logoClickCount, setLogoClickCount] = useState(0);
+
+  // Check 1-hour session validity
+  const getIsSessionValid = () => {
+    if (typeof window === 'undefined') return false;
+    const sessionExpiry = localStorage.getItem('sutra_dev_session_expiry');
+    if (!sessionExpiry) return false;
+    return Date.now() < parseInt(sessionExpiry, 10);
+  };
+
+  const [isSecretUnlocked, setIsSecretUnlocked] = useState(getIsSessionValid);
+
+  // Check every 30 seconds if the 1-hour dev session has expired
+  React.useEffect(() => {
+    const timer = setInterval(() => {
+      const valid = getIsSessionValid();
+      if (!valid && isSecretUnlocked) {
+        setIsSecretUnlocked(false);
+        setProfile(prev => ({
+          ...prev,
+          settings: { ...prev.settings, developerMode: false }
+        }));
+        toast({
+          title: "Developer Session Expired ⏱️",
+          description: "1 hour has passed. Please re-enter the developer password.",
+        });
+      }
+    }, 30000);
+    return () => clearInterval(timer);
+  }, [isSecretUnlocked]);
+
+  const handleSettingsLogoClick = () => {
+    const next = logoClickCount + 1;
+    setLogoClickCount(next);
+
+    if (next >= 5) {
+      setLogoClickCount(0);
+      setDevPasswordInput('');
+      setDevPasswordError(false);
+      setIsDevPasswordModalOpen(true);
+    } else if (next >= 2) {
+      toast({
+        title: `${5 - next} more tap${5 - next === 1 ? '' : 's'} to unlock developer password prompt`,
+      });
+    }
+  };
+
+  // 1. IP & User Ban state
+  const [banEmailInput, setBanEmailInput] = useState('');
+  const [isUpdatingBan, setIsUpdatingBan] = useState(false);
+
+  // 3. Stealth Panic Mode state
+  const [isTogglingStealth, setIsTogglingStealth] = useState(false);
 
   const handleGenerateCode = async () => {
     const code = 'SUTRA-' + Math.random().toString(36).substring(2, 6).toUpperCase() + Math.random().toString(36).substring(2, 6).toUpperCase();
@@ -471,7 +526,194 @@ export function SettingsPage({ onClose }: { onClose?: () => void }) {
       .upsert({ tool_id: toolId, is_maintenance: !currentState });
       
     if (error) {
-      alert("Failed to update tool maintenance. Error: " + error.message);
+      toast({ title: "Failed to update tool state", description: error.message, variant: "destructive" });
+    } else {
+      toast({ 
+        title: !currentState ? "Feature Suspended" : "Feature Enabled",
+        description: `${allTools.find(t => t.id === toolId)?.label || toolId} is now ${!currentState ? 'locked for users' : 'live'}.`
+      });
+    }
+  };
+
+  const handleToolMaintenanceMessage = async (toolId: string, message: string) => {
+    const { error } = await supabase
+      .from('tool_maintenance')
+      .upsert({ tool_id: toolId, message: message.trim() || null });
+      
+    if (error) {
+      toast({ title: "Failed to update notice", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "Notice Updated", description: "Users will see this custom maintenance message." });
+    }
+  };
+
+  // 3. Live Broadcast Banner state
+  const [broadcastBannerText, setBroadcastBannerText] = useState('');
+  const [broadcastBannerType, setBroadcastBannerType] = useState<'info' | 'warning' | 'urgent'>('info');
+  const [isBroadcasting, setIsBroadcasting] = useState(false);
+
+  // 4. Direct User Push Message state
+  const [targetUserEmail, setTargetUserEmail] = useState('');
+  const [directUserMessage, setDirectUserMessage] = useState('');
+  const [isSendingDirect, setIsSendingDirect] = useState(false);
+
+  // 5. Database Health & Inspection state
+  const [dbStats, setDbStats] = useState<{
+    supportMessages: number;
+    supportSessions: number;
+    membershipCodes: number;
+    toolOverrides: number;
+    latencyMs: number;
+    checkedAt: string;
+  } | null>(null);
+  const [isCheckingDb, setIsCheckingDb] = useState(false);
+  const [isPurgingMessages, setIsPurgingMessages] = useState(false);
+
+  const fetchDatabaseHealth = async () => {
+    setIsCheckingDb(true);
+    const start = performance.now();
+    try {
+      const [msgRes, sesRes, codesRes, toolsRes] = await Promise.all([
+        supabase.from('support_messages').select('*', { count: 'exact', head: true }),
+        supabase.from('support_sessions').select('*', { count: 'exact', head: true }),
+        supabase.from('membership_codes').select('*', { count: 'exact', head: true }),
+        supabase.from('tool_maintenance').select('*', { count: 'exact', head: true }),
+      ]);
+      const latency = Math.round(performance.now() - start);
+
+      setDbStats({
+        supportMessages: msgRes.count || 0,
+        supportSessions: sesRes.count || 0,
+        membershipCodes: codesRes.count || 0,
+        toolOverrides: toolsRes.count || 0,
+        latencyMs: latency,
+        checkedAt: new Date().toLocaleTimeString(),
+      });
+      toast({ title: "Database Health Checked", description: `Latency: ${latency}ms` });
+    } catch (e: any) {
+      toast({ title: "Health Check Failed", description: e.message, variant: "destructive" });
+    } finally {
+      setIsCheckingDb(false);
+    }
+  };
+
+  const handlePurgeOldChatLogs = async () => {
+    if (!window.confirm("Purge closed support chat logs older than 7 days from Supabase?")) return;
+    setIsPurgingMessages(true);
+    try {
+      const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+      const { error } = await supabase.from('support_messages').delete().lt('created_at', sevenDaysAgo);
+      if (error) throw error;
+      toast({ title: "Database Pruned", description: "Old support chat messages purged successfully." });
+      fetchDatabaseHealth();
+    } catch (e: any) {
+      toast({ title: "Purge Failed", description: e.message, variant: "destructive" });
+    } finally {
+      setIsPurgingMessages(false);
+    }
+  };
+
+  const handleSendDirectMessage = async () => {
+    if (!targetUserEmail.trim() || !directUserMessage.trim()) {
+      toast({ title: "Missing Fields", description: "Please enter user email and message", variant: "destructive" });
+      return;
+    }
+    setIsSendingDirect(true);
+    try {
+      const { error } = await supabase.from('support_messages').insert({
+        user_id: targetUserEmail.trim().toLowerCase(),
+        sender: 'admin',
+        text: `[OFFICIAL ADMIN MESSAGE]: ${directUserMessage.trim()}`,
+        created_at: new Date().toISOString(),
+      });
+      if (error) throw error;
+      toast({ title: "Message Dispatched", description: `Delivered to user inbox for ${targetUserEmail}` });
+      setDirectUserMessage('');
+    } catch (e: any) {
+      toast({ title: "Dispatch Failed", description: e.message, variant: "destructive" });
+    } finally {
+      setIsSendingDirect(false);
+    }
+  };
+
+  const handleSendBroadcastBanner = async () => {
+    if (!broadcastBannerText.trim()) {
+      toast({ title: "Empty Announcement", description: "Please enter text to broadcast", variant: "destructive" });
+      return;
+    }
+    setIsBroadcasting(true);
+    try {
+      const prefix = broadcastBannerType === 'urgent' ? '🚨 URGENT: ' : broadcastBannerType === 'warning' ? '⚠️ NOTICE: ' : '📢 ';
+      const success = await addGlobalNotification({
+        title: `${prefix}${broadcastBannerText.trim().slice(0, 40)}`,
+        message: broadcastBannerText.trim()
+      });
+      if (success) {
+        toast({ title: "Live Alert Broadcasted! 📡", description: "Pushed to all active user screens." });
+        setBroadcastBannerText('');
+      } else {
+        toast({ title: "Broadcast Failed", variant: "destructive" });
+      }
+    } catch (e: any) {
+      toast({ title: "Error", description: e.message, variant: "destructive" });
+    } finally {
+      setIsBroadcasting(false);
+    }
+  };
+
+  const handleAddBannedEmail = async () => {
+    const emailToBan = banEmailInput.trim().toLowerCase();
+    if (!emailToBan || !emailToBan.includes('@')) {
+      toast({ title: "Invalid Email", description: "Please enter a valid email address.", variant: "destructive" });
+      return;
+    }
+    if (emailToBan === 'amanyadavyadav9458@gmail.com') {
+      toast({ title: "Action Forbidden", description: "You cannot ban the owner account.", variant: "destructive" });
+      return;
+    }
+    if ((bannedEmails || []).includes(emailToBan)) {
+      toast({ title: "Already Banned", description: "This email is already in the blacklist.", variant: "destructive" });
+      return;
+    }
+
+    setIsUpdatingBan(true);
+    const updated = [...(bannedEmails || []), emailToBan];
+    const ok = await updateBannedEmails(updated);
+    setIsUpdatingBan(false);
+    if (ok) {
+      toast({ title: "User Blacklisted", description: `${emailToBan} has been blocked from accessing the app.` });
+      setBanEmailInput('');
+    } else {
+      toast({ title: "Failed to blacklist user", variant: "destructive" });
+    }
+  };
+
+  const handleRemoveBannedEmail = async (emailToRemove: string) => {
+    setIsUpdatingBan(true);
+    const updated = (bannedEmails || []).filter(e => e.toLowerCase() !== emailToRemove.toLowerCase());
+    const ok = await updateBannedEmails(updated);
+    setIsUpdatingBan(false);
+    if (ok) {
+      toast({ title: "Ban Lifted", description: `${emailToRemove} has been restored access.` });
+    } else {
+      toast({ title: "Failed to lift ban", variant: "destructive" });
+    }
+  };
+
+  const handleToggleStealthMode = async () => {
+    const newState = !stealthMode;
+    setIsTogglingStealth(true);
+    const ok = await updateStealthMode(newState);
+    setIsTogglingStealth(false);
+    if (ok) {
+      toast({ 
+        title: newState ? "Stealth Mode Activated 🕶️" : "Stealth Mode Deactivated",
+        description: newState 
+          ? "All normal user devices now show a decoy simple calculator!" 
+          : "Normal application view restored for all users."
+      });
+    } else {
+      toast({ title: "Failed to update stealth mode", variant: "destructive" });
     }
   };
 
@@ -487,7 +729,8 @@ export function SettingsPage({ onClose }: { onClose?: () => void }) {
   ];
 
   const isOwner = profile.email === 'amanyadavyadav9458@gmail.com';
-  const isDevMode = Boolean(profile.settings?.developerMode || isOwner);
+  // Developer mode is shown ONLY when logged in as owner OR when 1-hour password session is active
+  const isDevMode = isOwner || (isSecretUnlocked && Boolean(profile.settings?.developerMode));
 
   if (isDevMode) {
     categories.push({ 
@@ -510,9 +753,19 @@ export function SettingsPage({ onClose }: { onClose?: () => void }) {
             exit={{ opacity: 0, x: -20 }}
             className="max-w-2xl mx-auto pb-24 px-4 pt-4"
           >
-            <div className="mb-6">
-              <h1 className="text-2xl font-bold tracking-tight">Settings</h1>
-              <p className="text-sm text-muted-foreground mt-1">Customize your Sutradhaar experience</p>
+            <div className="mb-6 flex items-center justify-between">
+              <div>
+                <h1 className="text-2xl font-bold tracking-tight">Settings</h1>
+                <p className="text-sm text-muted-foreground mt-1">Customize your Sutradhaar experience</p>
+              </div>
+              {/* Secret 5-tap trigger on the Settings Hexagon badge */}
+              <div 
+                onClick={handleSettingsLogoClick}
+                className="w-10 h-10 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center cursor-pointer select-none active:scale-90 transition-transform"
+                title="Sutradhaar"
+              >
+                <Hexagon className="w-5 h-5 text-primary" />
+              </div>
             </div>
 
             <div className="space-y-2">
@@ -686,37 +939,39 @@ export function SettingsPage({ onClose }: { onClose?: () => void }) {
                   />
                 </SettingRow>
 
-                <SettingRow
-                  icon={Code2}
-                  iconColor="text-yellow-400"
-                  title="Developer Mode"
-                  description="Password protected access for administrator and developer tools"
-                >
-                  <Switch 
-                    checked={Boolean(profile.settings?.developerMode)} 
-                    onCheckedChange={(checked) => {
-                      if (checked) {
-                        if (isOwner) {
+                {(isOwner || isSecretUnlocked) && (
+                  <SettingRow
+                    icon={Code2}
+                    iconColor="text-yellow-400"
+                    title="Developer Mode"
+                    description="Password protected access for administrator and developer tools"
+                  >
+                    <Switch 
+                      checked={Boolean(profile.settings?.developerMode)} 
+                      onCheckedChange={(checked) => {
+                        if (checked) {
+                          if (isOwner) {
+                            setProfile(prev => ({
+                              ...prev,
+                              settings: { ...prev.settings, developerMode: true }
+                            }));
+                            toast({ title: 'Developer Mode Enabled', description: 'Welcome back, Owner!' });
+                          } else {
+                            setDevPasswordInput('');
+                            setDevPasswordError(false);
+                            setIsDevPasswordModalOpen(true);
+                          }
+                        } else {
                           setProfile(prev => ({
                             ...prev,
-                            settings: { ...prev.settings, developerMode: true }
+                            settings: { ...prev.settings, developerMode: false }
                           }));
-                          toast({ title: 'Developer Mode Enabled', description: 'Welcome back, Owner!' });
-                        } else {
-                          setDevPasswordInput('');
-                          setDevPasswordError(false);
-                          setIsDevPasswordModalOpen(true);
+                          toast({ title: 'Developer Mode Disabled' });
                         }
-                      } else {
-                        setProfile(prev => ({
-                          ...prev,
-                          settings: { ...prev.settings, developerMode: false }
-                        }));
-                        toast({ title: 'Developer Mode Disabled' });
-                      }
-                    }}
-                  />
-                </SettingRow>
+                      }}
+                    />
+                  </SettingRow>
+                )}
 
                 <SettingRow
                   icon={Bell}
@@ -980,6 +1235,26 @@ export function SettingsPage({ onClose }: { onClose?: () => void }) {
 
                     <motion.div
                       whileTap={{ scale: 0.98 }}
+                      onClick={() => setActiveAdvancedCategory('feature-flags')}
+                      className="flex items-center justify-between p-4 rounded-2xl border border-cyan-500/20 bg-cyan-500/5 hover:bg-cyan-500/10 transition-colors cursor-pointer"
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="p-2.5 rounded-xl bg-cyan-500/10">
+                          <Sliders className="w-5 h-5 text-cyan-500" />
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <h3 className="font-semibold text-foreground text-sm">Remote Feature Flags</h3>
+                            <span className="px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider rounded-md bg-cyan-500/20 text-cyan-400">Instant</span>
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-0.5">Toggle tools on/off live across all devices</p>
+                        </div>
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                    </motion.div>
+
+                    <motion.div
+                      whileTap={{ scale: 0.98 }}
                       onClick={() => setActiveAdvancedCategory('announcements')}
                       className="flex items-center justify-between p-4 rounded-2xl border border-amber-500/20 bg-amber-500/5 hover:bg-amber-500/10 transition-colors cursor-pointer"
                     >
@@ -1061,6 +1336,111 @@ export function SettingsPage({ onClose }: { onClose?: () => void }) {
                         <div>
                           <h3 className="font-semibold text-foreground text-sm">Records of Licenses</h3>
                           <p className="text-xs text-muted-foreground mt-0.5">View active keys, pause/revoke & delete</p>
+                        </div>
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                    </motion.div>
+
+                    <motion.div
+                      whileTap={{ scale: 0.98 }}
+                      onClick={() => setActiveAdvancedCategory('broadcast-banner')}
+                      className="flex items-center justify-between p-4 rounded-2xl border border-rose-500/20 bg-rose-500/5 hover:bg-rose-500/10 transition-colors cursor-pointer"
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="p-2.5 rounded-xl bg-rose-500/10">
+                          <Radio className="w-5 h-5 text-rose-500" />
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <h3 className="font-semibold text-foreground text-sm">Live Broadcast Alert</h3>
+                            <span className="px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider rounded-md bg-rose-500/20 text-rose-400">Live</span>
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-0.5">Push urgent alerts & announcements to all active users</p>
+                        </div>
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                    </motion.div>
+
+                    <motion.div
+                      whileTap={{ scale: 0.98 }}
+                      onClick={() => setActiveAdvancedCategory('direct-message')}
+                      className="flex items-center justify-between p-4 rounded-2xl border border-indigo-500/20 bg-indigo-500/5 hover:bg-indigo-500/10 transition-colors cursor-pointer"
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="p-2.5 rounded-xl bg-indigo-500/10">
+                          <MessageSquare className="w-5 h-5 text-indigo-500" />
+                        </div>
+                        <div>
+                          <h3 className="font-semibold text-foreground text-sm">Direct User Message</h3>
+                          <p className="text-xs text-muted-foreground mt-0.5">Send private 1-to-1 administrative alert to any user</p>
+                        </div>
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                    </motion.div>
+
+                    <motion.div
+                      whileTap={{ scale: 0.98 }}
+                      onClick={() => {
+                        fetchDatabaseHealth();
+                        setActiveAdvancedCategory('db-health');
+                      }}
+                      className="flex items-center justify-between p-4 rounded-2xl border border-emerald-500/20 bg-emerald-500/5 hover:bg-emerald-500/10 transition-colors cursor-pointer"
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="p-2.5 rounded-xl bg-emerald-500/10">
+                          <DatabaseZap className="w-5 h-5 text-emerald-500" />
+                        </div>
+                        <div>
+                          <h3 className="font-semibold text-foreground text-sm">Database Health & Pruning</h3>
+                          <p className="text-xs text-muted-foreground mt-0.5">Row counts, latency, and vacuum old logs</p>
+                        </div>
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                    </motion.div>
+
+                    <motion.div
+                      whileTap={{ scale: 0.98 }}
+                      onClick={() => setActiveAdvancedCategory('ban-system')}
+                      className="flex items-center justify-between p-4 rounded-2xl border border-red-500/20 bg-red-500/5 hover:bg-red-500/10 transition-colors cursor-pointer"
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="p-2.5 rounded-xl bg-red-500/10">
+                          <UserX className="w-5 h-5 text-red-500" />
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <h3 className="font-semibold text-foreground text-sm">User Blacklist & Bans</h3>
+                            {bannedEmails?.length > 0 && (
+                              <span className="px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider rounded-md bg-red-500/20 text-red-400">
+                                {bannedEmails.length} Banned
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-0.5">Block abusive user accounts and revoke app access</p>
+                        </div>
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                    </motion.div>
+
+                    <motion.div
+                      whileTap={{ scale: 0.98 }}
+                      onClick={() => setActiveAdvancedCategory('stealth-mode')}
+                      className="flex items-center justify-between p-4 rounded-2xl border border-purple-500/20 bg-purple-500/5 hover:bg-purple-500/10 transition-colors cursor-pointer"
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="p-2.5 rounded-xl bg-purple-500/10">
+                          <Eye className="w-5 h-5 text-purple-400" />
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <h3 className="font-semibold text-foreground text-sm">Stealth Panic Mode</h3>
+                            <span className={`px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider rounded-md ${
+                              stealthMode ? 'bg-amber-500/20 text-amber-400 animate-pulse' : 'bg-muted text-muted-foreground'
+                            }`}>
+                              {stealthMode ? 'ACTIVE' : 'OFF'}
+                            </span>
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-0.5">Remote decoy screen disguised as simple calculator</p>
                         </div>
                       </div>
                       <ChevronRight className="w-4 h-4 text-muted-foreground" />
@@ -1202,6 +1582,89 @@ export function SettingsPage({ onClose }: { onClose?: () => void }) {
                               );
                             })}
                           </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Remote Feature Flags Panel */}
+                    {activeAdvancedCategory === 'feature-flags' && (
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between pb-2 border-b border-border/40">
+                          <div>
+                            <h2 className="text-sm font-bold text-cyan-400 uppercase tracking-wider flex items-center gap-2">
+                              <Sliders className="w-4 h-4 text-cyan-400" />
+                              Remote Feature Flags
+                            </h2>
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                              Toggle individual tools and features on or off in real-time across all active user devices.
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Quick filter/search */}
+                        <div className="space-y-3">
+                          {allTools.map((tool) => {
+                            const isPaused = Boolean(maintenance.tools?.[tool.id]?.is_maintenance);
+                            const toolNotice = maintenance.tools?.[tool.id]?.message || '';
+
+                            return (
+                              <div 
+                                key={tool.id} 
+                                className={`p-4 rounded-2xl border transition-all ${
+                                  isPaused 
+                                    ? 'border-amber-500/30 bg-amber-500/5' 
+                                    : 'border-border/30 bg-card/40'
+                                } space-y-3`}
+                              >
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-3">
+                                    <div className={`p-2.5 rounded-xl ${isPaused ? 'bg-amber-500/10 text-amber-500' : `${tool.bg} ${tool.color}`}`}>
+                                      <tool.icon className="w-5 h-5" />
+                                    </div>
+                                    <div>
+                                      <div className="flex items-center gap-2">
+                                        <h4 className="text-sm font-semibold text-foreground">{tool.label}</h4>
+                                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
+                                          isPaused 
+                                            ? 'bg-amber-500/10 text-amber-500 border border-amber-500/20' 
+                                            : 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'
+                                        }`}>
+                                          {isPaused ? 'DISABLED / PAUSED' : 'ONLINE'}
+                                        </span>
+                                      </div>
+                                      <p className="text-xs text-muted-foreground mt-0.5">
+                                        Category: <span className="text-foreground/80 font-medium">{tool.category}</span>
+                                      </p>
+                                    </div>
+                                  </div>
+
+                                  <Switch
+                                    checked={!isPaused}
+                                    onCheckedChange={() => handleToolMaintenanceToggle(tool.id, isPaused)}
+                                    className="data-[state=checked]:bg-emerald-500 data-[state=unchecked]:bg-zinc-700"
+                                  />
+                                </div>
+
+                                {isPaused && (
+                                  <div className="pt-2 border-t border-amber-500/10 flex items-center gap-2">
+                                    <Input
+                                      defaultValue={toolNotice}
+                                      placeholder="Custom user message when clicked..."
+                                      className="h-9 text-xs bg-background/50 border-amber-500/20 rounded-xl flex-1"
+                                      onKeyDown={(e) => {
+                                        if (e.key === 'Enter') {
+                                          handleToolMaintenanceMessage(tool.id, (e.target as HTMLInputElement).value);
+                                        }
+                                      }}
+                                      onBlur={(e) => {
+                                        handleToolMaintenanceMessage(tool.id, e.target.value);
+                                      }}
+                                    />
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
                         </div>
                       </div>
                     )}
@@ -1803,6 +2266,325 @@ export function SettingsPage({ onClose }: { onClose?: () => void }) {
                       <FaqManager />
                     )}
 
+                    {/* 3. Live Broadcast Alert Screen */}
+                    {activeAdvancedCategory === 'broadcast-banner' && (
+                      <div className="space-y-5 animate-in slide-in-from-right-4 duration-300">
+                        <div className="p-6 rounded-[2rem] border border-rose-500/20 bg-rose-500/5 backdrop-blur-xl shadow-lg space-y-5">
+                          <div className="pb-3 border-b border-rose-500/10 flex items-center justify-between">
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <Radio className="w-5 h-5 text-rose-500 animate-pulse" />
+                                <Label className="font-bold text-foreground text-base">Live Broadcast Alert</Label>
+                              </div>
+                              <p className="text-xs text-muted-foreground mt-0.5">
+                                Instantly flash high-priority toast alerts to every device currently running Sutradhaar
+                              </p>
+                            </div>
+                          </div>
+
+                          {/* Urgency selector */}
+                          <div className="space-y-2">
+                            <Label className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">Alert Severity</Label>
+                            <div className="grid grid-cols-3 gap-2">
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant={broadcastBannerType === 'info' ? 'default' : 'outline'}
+                                onClick={() => setBroadcastBannerType('info')}
+                                className={broadcastBannerType === 'info' ? 'bg-blue-600 text-white font-bold' : ''}
+                              >
+                                📢 Standard
+                              </Button>
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant={broadcastBannerType === 'warning' ? 'default' : 'outline'}
+                                onClick={() => setBroadcastBannerType('warning')}
+                                className={broadcastBannerType === 'warning' ? 'bg-amber-600 text-white font-bold' : ''}
+                              >
+                                ⚠️ Warning
+                              </Button>
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant={broadcastBannerType === 'urgent' ? 'default' : 'outline'}
+                                onClick={() => setBroadcastBannerType('urgent')}
+                                className={broadcastBannerType === 'urgent' ? 'bg-rose-600 text-white font-bold' : ''}
+                              >
+                                🚨 Critical
+                              </Button>
+                            </div>
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">Broadcast Message</Label>
+                            <textarea
+                              rows={3}
+                              value={broadcastBannerText}
+                              onChange={(e) => setBroadcastBannerText(e.target.value)}
+                              placeholder="e.g. System update scheduled tonight at 11:00 PM. Please save your work!"
+                              className="w-full text-sm bg-background/50 border border-border/40 rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-rose-500/50"
+                            />
+                          </div>
+
+                          <Button
+                            type="button"
+                            onClick={handleSendBroadcastBanner}
+                            disabled={isBroadcasting}
+                            className="w-full h-11 rounded-xl bg-gradient-to-r from-rose-600 to-pink-600 hover:from-rose-500 hover:to-pink-500 text-white font-bold shadow-lg shadow-rose-500/20 gap-2"
+                          >
+                            <Radio className={`w-4 h-4 ${isBroadcasting ? 'animate-spin' : ''}`} />
+                            <span>{isBroadcasting ? 'Broadcasting...' : 'Broadcast to All Users'}</span>
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* 4. Direct User Message Screen */}
+                    {activeAdvancedCategory === 'direct-message' && (
+                      <div className="space-y-5 animate-in slide-in-from-right-4 duration-300">
+                        <div className="p-6 rounded-[2rem] border border-indigo-500/20 bg-indigo-500/5 backdrop-blur-xl shadow-lg space-y-5">
+                          <div className="pb-3 border-b border-indigo-500/10">
+                            <div className="flex items-center gap-2">
+                              <MessageSquare className="w-5 h-5 text-indigo-500" />
+                              <Label className="font-bold text-foreground text-base">Direct User Message</Label>
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                              Deliver a private administrative note directly into a specific user's support inbox
+                            </p>
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">Recipient User Email</Label>
+                            <Input
+                              type="email"
+                              placeholder="e.g. user@gmail.com"
+                              value={targetUserEmail}
+                              onChange={(e) => setTargetUserEmail(e.target.value)}
+                              className="h-10 text-sm bg-background/50 border-border/40 rounded-xl"
+                            />
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">Admin Message</Label>
+                            <textarea
+                              rows={3}
+                              value={directUserMessage}
+                              onChange={(e) => setDirectUserMessage(e.target.value)}
+                              placeholder="e.g. Hello, your Ultra VIP trial has been extended by 30 days! Thank you for using Sutradhaar."
+                              className="w-full text-sm bg-background/50 border border-border/40 rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+                            />
+                          </div>
+
+                          <Button
+                            type="button"
+                            onClick={handleSendDirectMessage}
+                            disabled={isSendingDirect}
+                            className="w-full h-11 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold shadow-lg shadow-indigo-500/20 gap-2"
+                          >
+                            <Send className={`w-4 h-4 ${isSendingDirect ? 'animate-spin' : ''}`} />
+                            <span>{isSendingDirect ? 'Delivering...' : 'Send Direct Message'}</span>
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* 5. Database Health & Inspection Screen */}
+                    {activeAdvancedCategory === 'db-health' && (
+                      <div className="space-y-5 animate-in slide-in-from-right-4 duration-300">
+                        <div className="p-6 rounded-[2rem] border border-emerald-500/20 bg-emerald-500/5 backdrop-blur-xl shadow-lg space-y-5">
+                          <div className="pb-3 border-b border-emerald-500/10 flex items-center justify-between">
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <DatabaseZap className="w-5 h-5 text-emerald-500" />
+                                <Label className="font-bold text-foreground text-base">Supabase Health & Inspector</Label>
+                              </div>
+                              <p className="text-xs text-muted-foreground mt-0.5">
+                                Live database metrics, active row counts, and maintenance tools
+                              </p>
+                            </div>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={fetchDatabaseHealth}
+                              disabled={isCheckingDb}
+                              className="h-8 px-3 rounded-xl border-emerald-500/30 text-emerald-400 gap-1.5"
+                            >
+                              <RefreshCw className={`w-3.5 h-3.5 ${isCheckingDb ? 'animate-spin' : ''}`} />
+                              <span>Refresh</span>
+                            </Button>
+                          </div>
+
+                          {/* Stats Grid */}
+                          <div className="grid grid-cols-2 gap-3">
+                            <div className="p-4 rounded-2xl bg-card/40 border border-border/30 space-y-1">
+                              <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">API Latency</span>
+                              <div className="flex items-baseline gap-1.5">
+                                <span className={`text-2xl font-black ${
+                                  (dbStats?.latencyMs || 0) < 300 ? 'text-emerald-400' : 'text-amber-400'
+                                }`}>
+                                  {dbStats?.latencyMs ?? '--'}
+                                </span>
+                                <span className="text-xs text-muted-foreground font-semibold">ms</span>
+                              </div>
+                              <p className="text-[10px] text-muted-foreground">Checked: {dbStats?.checkedAt || 'Just now'}</p>
+                            </div>
+
+                            <div className="p-4 rounded-2xl bg-card/40 border border-border/30 space-y-1">
+                              <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Support Messages</span>
+                              <p className="text-2xl font-black text-foreground">
+                                {dbStats?.supportMessages ?? '--'}
+                              </p>
+                              <p className="text-[10px] text-muted-foreground">Total chat logs</p>
+                            </div>
+
+                            <div className="p-4 rounded-2xl bg-card/40 border border-border/30 space-y-1">
+                              <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Active Sessions</span>
+                              <p className="text-2xl font-black text-foreground">
+                                {dbStats?.supportSessions ?? '--'}
+                              </p>
+                              <p className="text-[10px] text-muted-foreground">Open support threads</p>
+                            </div>
+
+                            <div className="p-4 rounded-2xl bg-card/40 border border-border/30 space-y-1">
+                              <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Membership Codes</span>
+                              <p className="text-2xl font-black text-foreground">
+                                {dbStats?.membershipCodes ?? '--'}
+                              </p>
+                              <p className="text-[10px] text-muted-foreground">Total issued licenses</p>
+                            </div>
+                          </div>
+
+                          {/* Actions / Pruning */}
+                          <div className="pt-2 border-t border-emerald-500/10 space-y-3">
+                            <Label className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">Database Maintenance Actions</Label>
+                            <div className="flex flex-col gap-2">
+                              <Button
+                                type="button"
+                                variant="outline"
+                                onClick={handlePurgeOldChatLogs}
+                                disabled={isPurgingMessages}
+                                className="w-full justify-start h-11 border-rose-500/20 text-rose-400 hover:bg-rose-500/10 rounded-xl font-semibold gap-2"
+                              >
+                                <Trash2 className={`w-4 h-4 ${isPurgingMessages ? 'animate-spin' : ''}`} />
+                                <span>Purge Support Chats Older Than 7 Days</span>
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* 1. User Blacklist & Ban Screen */}
+                    {activeAdvancedCategory === 'ban-system' && (
+                      <div className="space-y-5 animate-in slide-in-from-right-4 duration-300">
+                        <div className="p-6 rounded-[2rem] border border-red-500/20 bg-red-500/5 backdrop-blur-xl shadow-lg space-y-5">
+                          <div className="pb-3 border-b border-red-500/10 flex items-center justify-between">
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <UserX className="w-5 h-5 text-red-500" />
+                                <Label className="font-bold text-foreground text-base">User Blacklist & Bans</Label>
+                              </div>
+                              <p className="text-xs text-muted-foreground mt-0.5">
+                                Instantly block specific user accounts from accessing any part of Sutradhaar
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">Ban User Email</Label>
+                            <div className="flex gap-2">
+                              <Input
+                                type="email"
+                                placeholder="abusive.user@example.com"
+                                value={banEmailInput}
+                                onChange={(e) => setBanEmailInput(e.target.value)}
+                                className="h-11 text-xs bg-background/50 border-border/40 rounded-xl"
+                              />
+                              <Button
+                                type="button"
+                                onClick={handleAddBannedEmail}
+                                disabled={isUpdatingBan}
+                                className="h-11 px-5 rounded-xl bg-red-500 hover:bg-red-600 text-white font-bold text-xs shrink-0"
+                              >
+                                {isUpdatingBan ? 'Banning...' : 'Add Ban'}
+                              </Button>
+                            </div>
+                          </div>
+
+                          {/* Banned list */}
+                          <div className="space-y-2 pt-2">
+                            <Label className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">
+                              Active Banned Accounts ({(bannedEmails || []).length})
+                            </Label>
+                            <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
+                              {(bannedEmails || []).length === 0 ? (
+                                <p className="text-xs text-muted-foreground py-3 text-center border border-dashed border-border/30 rounded-xl">
+                                  No accounts are currently banned.
+                                </p>
+                              ) : (
+                                (bannedEmails || []).map((email) => (
+                                  <div
+                                    key={email}
+                                    className="p-3.5 rounded-xl bg-card/60 border border-red-500/20 flex items-center justify-between"
+                                  >
+                                    <div className="flex items-center gap-2.5">
+                                      <Ban className="w-4 h-4 text-red-500 shrink-0" />
+                                      <span className="text-xs font-semibold text-foreground font-mono">{email}</span>
+                                    </div>
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      onClick={() => handleRemoveBannedEmail(email)}
+                                      disabled={isUpdatingBan}
+                                      className="h-8 px-2.5 text-xs text-red-400 hover:text-white hover:bg-red-500/20 rounded-lg font-bold"
+                                    >
+                                      Unban
+                                    </Button>
+                                  </div>
+                                ))
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* 3. Stealth Panic Mode Screen */}
+                    {activeAdvancedCategory === 'stealth-mode' && (
+                      <div className="space-y-5 animate-in slide-in-from-right-4 duration-300">
+                        <div className="p-6 rounded-[2rem] border border-purple-500/20 bg-purple-500/5 backdrop-blur-xl shadow-lg space-y-5">
+                          <div className="pb-3 border-b border-purple-500/10 flex items-center justify-between">
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <Eye className="w-5 h-5 text-purple-400" />
+                                <Label className="font-bold text-foreground text-base">Emergency Stealth Decoy</Label>
+                              </div>
+                              <p className="text-xs text-muted-foreground mt-0.5">
+                                Lock down the entire app for all non-owner devices into an innocent simple calculator
+                              </p>
+                            </div>
+                            <Switch
+                              checked={stealthMode}
+                              onCheckedChange={handleToggleStealthMode}
+                              disabled={isTogglingStealth}
+                              className="data-[state=checked]:bg-purple-600"
+                            />
+                          </div>
+
+                          <div className="p-4 rounded-2xl bg-card/50 border border-purple-500/20 space-y-2">
+                            <h4 className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                              <span className={`w-2 h-2 rounded-full ${stealthMode ? 'bg-amber-400 animate-ping' : 'bg-zinc-500'}`} />
+                              Current Status: {stealthMode ? 'STEALTH LOCKDOWN ACTIVE' : 'NORMAL MODE'}
+                            </h4>
+                            <p className="text-xs text-muted-foreground leading-relaxed">
+                              When enabled, all regular users worldwide will see only a bare-bones calculator. Navigation, Notes, Budget, Tools, and Settings will be completely hidden from non-owners until you disable Stealth Mode.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
                     {/* Change Developer Password Screen */}
                     {activeAdvancedCategory === 'change-password' && (
                       <div className="space-y-5">
@@ -1906,14 +2688,15 @@ export function SettingsPage({ onClose }: { onClose?: () => void }) {
               const localCustomPass = localStorage.getItem('sutra_dev_password');
               const validPasswords = [
                 devPassword,
-                localCustomPass, 
-                'aman@dev', 
-                'admin123', 
-                'sutra2026', 
-                'developer'
+                localCustomPass
               ].filter(Boolean).map(p => p?.toLowerCase());
 
               if (validPasswords.includes(devPasswordInput.trim().toLowerCase())) {
+                // Set 1-hour session expiry
+                const oneHourLater = Date.now() + 60 * 60 * 1000;
+                localStorage.setItem('sutra_dev_session_expiry', oneHourLater.toString());
+                setIsSecretUnlocked(true);
+
                 setProfile(prev => ({
                   ...prev,
                   settings: {
@@ -1926,7 +2709,7 @@ export function SettingsPage({ onClose }: { onClose?: () => void }) {
                 setDevPasswordError(false);
                 toast({
                   title: 'Developer Mode Unlocked! 🚀',
-                  description: 'Developer / Advanced section is now accessible.',
+                  description: 'Active for the next 1 hour. Re-authentication will be required after 60 minutes.',
                 });
               } else {
                 setDevPasswordError(true);
@@ -1939,7 +2722,7 @@ export function SettingsPage({ onClose }: { onClose?: () => void }) {
                 <KeyRound className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   type="password"
-                  placeholder="Enter Password (e.g. admin123)"
+                  placeholder="Enter developer password"
                   value={devPasswordInput}
                   onChange={(e) => {
                     setDevPasswordInput(e.target.value);

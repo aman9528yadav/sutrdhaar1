@@ -13,14 +13,37 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 
 export function GlobalHeader({ onProfileClick, onOpenSearch }: { onProfileClick?: () => void, onOpenSearch?: () => void }) {
     const { profile, logout, setProfile, markNotificationAsRead, dismissNotification } = useProfile();
     const { globalNotifications } = useChangelog();
     const { isActive } = useTimer();
+    const { toast } = useToast();
 
+    const [headerTapCount, setHeaderTapCount] = React.useState(0);
     const [currentLang, setCurrentLang] = React.useState('en');
+
+    const handleHeaderLogoTap = () => {
+        const next = headerTapCount + 1;
+        setHeaderTapCount(next);
+
+        if (next >= 5) {
+            setHeaderTapCount(0);
+            if (onProfileClick) {
+                onProfileClick(); // Open settings where password prompt will be waiting
+            }
+            toast({
+                title: "5 Taps Detected! 🔐",
+                description: "Go to Settings or tap the Settings badge to enter developer password.",
+            });
+        } else if (next >= 2) {
+            toast({
+                title: `${5 - next} more tap${5 - next === 1 ? '' : 's'} for developer prompt`,
+            });
+        }
+    };
 
     const handleLanguageChange = (langCode: string) => {
         setCurrentLang(langCode);
@@ -69,7 +92,11 @@ export function GlobalHeader({ onProfileClick, onOpenSearch }: { onProfileClick?
             <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-primary/30 to-transparent" />
             
             <div className="flex items-center justify-between h-16 px-5 w-full">
-                <div className="flex items-center gap-3">
+                <div 
+                    onClick={handleHeaderLogoTap}
+                    className="flex items-center gap-3 cursor-pointer select-none active:scale-95 transition-transform"
+                    title="Sutradhaar"
+                >
                     <div className="w-9 h-9 rounded-2xl bg-gradient-to-tr from-primary via-purple-500 to-pink-500 flex items-center justify-center shadow-lg shadow-primary/20">
                         <Sparkles className="w-5 h-5 text-white" />
                     </div>

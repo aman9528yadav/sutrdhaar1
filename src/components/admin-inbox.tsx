@@ -38,12 +38,39 @@ export function AdminInboxPage() {
         });
         
         // Setup Supabase Realtime Subscriptions for ALL sessions
-        const channel = supabase.channel('admin_inbox')
+        const channel = supabase.channel(`admin_inbox_${Date.now()}`)
             .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'support_messages' }, (payload) => {
-                if (payload.new && payload.new.sender === 'user') {
-                    playDing();
+                const newMsg = payload.new as any;
+                if (newMsg && newMsg.user_id) {
+                    if (newMsg.sender === 'user') {
+                        playDing();
+                    }
+                    // Fast optimistic-patch without waiting for full server roundtrip
+                    setSessions(prev => {
+                        const existing = prev[newMsg.user_id];
+                        if (existing) {
+                            const alreadyExists = existing.messages.some(m => m.id === newMsg.id);
+                            if (alreadyExists) return prev;
+                            return {
+                                ...prev,
+                                [newMsg.user_id]: {
+                                    ...existing,
+                                    lastUpdated: newMsg.timestamp || Date.now(),
+                                    unreadAdmin: newMsg.sender === 'user' ? existing.unreadAdmin + 1 : existing.unreadAdmin,
+                                    messages: [...existing.messages, {
+                                        id: newMsg.id,
+                                        text: newMsg.text,
+                                        sender: newMsg.sender,
+                                        timestamp: newMsg.timestamp || Date.now()
+                                    }]
+                                }
+                            };
+                        } else {
+                            loadSessions();
+                            return prev;
+                        }
+                    });
                 }
-                loadSessions();
             })
             .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'support_messages' }, () => {
                 loadSessions();
@@ -94,10 +121,10 @@ export function AdminInboxPage() {
             .subscribe();
         typingChannelRef.current = typingChannel;
 
-        // Silent Polling Fallback
+        // Silent Polling Fallback (Fast 1.5s background interval for instant sync)
         const pollInterval = setInterval(() => {
             loadSessions();
-        }, 3000);
+        }, 1500);
 
         return () => {
             supabase.removeChannel(channel);
@@ -381,9 +408,9 @@ export function AdminInboxPage() {
                 </div>
             </div>
 
-            {/* Main Chat Area (Full width if session selected, otherwise hidden) */}
+            {/* Main Chat Area */}
             {selectedSession && (
-                <div className="flex flex-col flex-1 fixed inset-0 md:static z-[100] bg-[radial-gradient(ellipse_at_bottom_right,_var(--tw-gradient-stops))] from-indigo-900/10 via-background to-background">
+                <div className="flex flex-col flex-1 fixed inset-0 z-[100] md:relative md:inset-auto md:z-10 h-full w-full bg-[radial-gradient(ellipse_at_bottom_right,_var(--tw-gradient-stops))] from-indigo-900/10 via-background to-background">
                     {/* Chat Header */}
                     <div className="h-16 px-4 border-b border-white/5 flex items-center justify-between bg-background/40 backdrop-blur-2xl z-10 shrink-0 shadow-sm">
                         <div className="flex items-center gap-3">
@@ -501,38 +528,43 @@ export function AdminInboxPage() {
                     </div>
 
                     {/* Quick Replies & Chat Input */}
-                    <div className="p-4 pb-6 md:pb-4 bg-background/40 backdrop-blur-2xl border-t border-white/5 z-10 shrink-0 shadow-sm">
+                    <div className="p-3 pb-8 md:pb-4 bg-background/95 backdrop-blur-2xl border-t border-border/40 z-20 shrink-0 shadow-lg">
                         {/* Quick Replies */}
-                        <div className="flex gap-2 overflow-x-auto pb-3 mb-1 no-scrollbar scroll-smooth">
+                        <div className="flex gap-2 overflow-x-auto pb-2.5 mb-2 no-scrollbar scroll-smooth">
                             {["Hello! I am AmanYadav. How can I help you with your account today?", "We are looking into this issue.", "Please clear your app cache.", "Your issue has been resolved!", "Is there anything else I can help with?"].map((reply, idx) => (
                                 <button
                                     key={idx}
                                     onClick={() => setInputValue(reply)}
-                                    className="whitespace-nowrap px-4 py-1.5 text-xs font-medium bg-black/20 dark:bg-white/5 hover:bg-black/30 dark:hover:bg-white/10 text-muted-foreground hover:text-foreground rounded-full border border-white/5 transition-all shadow-sm"
+                                    className="whitespace-nowrap px-3.5 py-1 text-xs font-semibold bg-muted/60 hover:bg-muted text-foreground rounded-full border border-border/40 transition-all shadow-sm"
                                 >
                                     {reply}
                                 </button>
                             ))}
                         </div>
 
-                        <div className="flex items-end gap-2 bg-black/20 dark:bg-white/5 p-1.5 border border-white/5 rounded-2xl shadow-inner focus-within:ring-1 focus-within:ring-indigo-500/50 transition-all">
+                        {/* Input bar + Highly visible Send Button */}
+                        <div className="flex items-center gap-2 bg-card/90 p-2 border border-border/60 rounded-2xl shadow-md focus-within:ring-2 focus-within:ring-indigo-500/50 transition-all">
                             <Input
                                 value={inputValue}
                                 onChange={handleTyping}
-                                onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter' && !e.shiftKey) {
+                                        e.preventDefault();
+                                        handleSendMessage();
+                                    }
+                                }}
                                 placeholder="Type a reply as AmanYadav..."
-                                className="border-0 bg-transparent shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 px-3 h-10 resize-none text-sm placeholder:text-muted-foreground/70"
+                                className="border-0 bg-transparent shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 px-2 h-10 resize-none text-sm placeholder:text-muted-foreground"
                             />
-                            <div className="flex items-center gap-1">
-                                <Button 
-                                    size="icon" 
-                                    onClick={handleSendMessage}
-                                    disabled={!inputValue.trim() || isSelectedBlocked}
-                                    className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 text-white shadow-[0_0_15px_-3px_rgba(79,70,229,0.5)] transition-all shrink-0"
-                                >
-                                    <Send className="w-4 h-4 ml-0.5 drop-shadow-sm" />
-                                </Button>
-                            </div>
+                            <Button 
+                                type="button"
+                                onClick={handleSendMessage}
+                                disabled={!inputValue.trim() || isSelectedBlocked}
+                                className="h-10 px-4 rounded-xl bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 text-white font-bold text-xs shadow-md shadow-indigo-500/30 transition-all shrink-0 gap-1.5 flex items-center justify-center"
+                            >
+                                <Send className="w-4 h-4" />
+                                <span className="hidden sm:inline">Send</span>
+                            </Button>
                         </div>
                     </div>
                 </div>

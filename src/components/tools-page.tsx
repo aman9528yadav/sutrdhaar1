@@ -13,6 +13,7 @@ import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useProfile } from '@/context/ProfileContext';
+import { useMaintenance } from '@/hooks/useMaintenance';
 import { hasUnlockedFeature, FeatureId } from '@/lib/level-system';
 import { PlanLockModal, PlanLockType } from './plan-lock-modal';
 
@@ -59,6 +60,7 @@ const categories = ["All", "Essentials", "Finance", "Time", "Utilities", "Coming
 
 export function ToolsPage({ onToolSelect }: ToolsPageProps) {
     const { profile, logout } = useProfile();
+    const { maintenance } = useMaintenance();
     const [searchQuery, setSearchQuery] = useState('');
     const [activeTab, setActiveTab] = useState('All');
     const [lockModalType, setLockModalType] = useState<PlanLockType>(null);
@@ -167,6 +169,7 @@ export function ToolsPage({ onToolSelect }: ToolsPageProps) {
                         {filteredTools.map((tool) => {
                             const featureId = toolToFeatureId[tool.id];
                             const isRestricted = featureId && !hasUnlockedFeature(profile, featureId);
+                            const isToolMaintenance = Boolean(maintenance.tools?.[tool.id]?.is_maintenance);
                             return (
                             <motion.div
                                 key={tool.id}
@@ -179,12 +182,18 @@ export function ToolsPage({ onToolSelect }: ToolsPageProps) {
                                 <Card
                                     className={cn(
                                         "group flex flex-col items-center justify-center p-3 h-28 bg-card hover:bg-accent/50 border border-border/50 hover:border-primary/50 transition-all duration-300 cursor-pointer rounded-2xl shadow-sm hover:shadow-md relative",
-                                        (tool.comingSoon || isRestricted) && "opacity-60 grayscale-[0.3] hover:grayscale-0"
+                                        (tool.comingSoon || isRestricted || isToolMaintenance) && "opacity-60 grayscale-[0.3] hover:grayscale-0"
                                     )}
                                     onClick={() => {
                                         if (tool.comingSoon) return;
                                         if (tool.externalLink) {
                                             window.open(tool.externalLink, '_blank', 'noopener,noreferrer');
+                                            return;
+                                        }
+
+                                        // If tool is locked for maintenance
+                                        if (isToolMaintenance) {
+                                            onToolSelect(tool.id); // Triggers under maintenance screen in app
                                             return;
                                         }
 
@@ -208,12 +217,17 @@ export function ToolsPage({ onToolSelect }: ToolsPageProps) {
                                         onToolSelect(tool.id);
                                     }}
                                 >
-                                    {tool.comingSoon && (
+                                    {isToolMaintenance && (
+                                        <span className="absolute top-2 right-2 text-[8px] font-bold uppercase tracking-wider text-amber-500 bg-amber-500/10 px-1.5 py-0.5 rounded-full border border-amber-500/30 flex items-center gap-0.5">
+                                            Pause
+                                        </span>
+                                    )}
+                                    {!isToolMaintenance && tool.comingSoon && (
                                         <span className="absolute top-2 right-2 text-[8px] font-bold uppercase tracking-wider text-muted-foreground bg-muted px-1.5 py-0.5 rounded-full border border-border">
                                             Soon
                                         </span>
                                     )}
-                                    {isRestricted && (
+                                    {!isToolMaintenance && isRestricted && (
                                         <span className="absolute top-2 right-2 flex items-center justify-center bg-destructive/10 p-1 rounded-full text-destructive">
                                             <Lock className="w-3 h-3" />
                                         </span>

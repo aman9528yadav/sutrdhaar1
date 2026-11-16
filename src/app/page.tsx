@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { ArrowLeft, Home } from 'lucide-react';
 import { GlobalHeader } from '@/components/global-header';
 import { useMaintenance } from '@/hooks/useMaintenance';
+import { useChangelog } from '@/hooks/useChangelog';
 import { allTools } from '@/components/tools-page';
 import { MaintenanceOverlay } from '@/components/maintenance-overlay';
 import { BottomNav } from '@/components/bottom-nav';
@@ -50,6 +51,7 @@ import { GlobalSearchDialog } from '@/components/global-search-dialog';
 export default function AppRoot() {
   const { profile, isAuthLoading, setProfile } = useProfile();
   const { maintenance, isLoading: isMaintenanceLoading } = useMaintenance();
+  const { bannedEmails, stealthMode } = useChangelog();
   const [activeTool, setActiveTool] = useState<string>('dashboard');
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isBypassed, setIsBypassed] = useState(false);
@@ -88,22 +90,32 @@ export default function AppRoot() {
       const toolLabel = allTools.find(t => t.id === activeTool)?.label || activeTool;
       return (
         <div className="flex flex-col items-center justify-center py-20 px-6 text-center space-y-6">
-          <div className="w-20 h-20 bg-blue-500/10 rounded-3xl flex items-center justify-center">
-            <ShieldAlert className="w-10 h-10 text-blue-500" />
+          <div className="w-20 h-20 bg-amber-500/10 rounded-3xl flex items-center justify-center border border-amber-500/20">
+            <ShieldAlert className="w-10 h-10 text-amber-500" />
           </div>
-          <div>
-            <h2 className="text-2xl font-bold mb-2">Under Maintenance</h2>
-            <p className="text-muted-foreground text-sm leading-relaxed">
-              {maintenance.tools[activeTool].message || `We are upgrading ${toolLabel}. Be back soon!`}
+          <div className="space-y-2">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 text-amber-500 text-xs font-bold uppercase tracking-wider border border-amber-500/20">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+              Tool Temporarily Disabled
+            </div>
+            <h2 className="text-2xl font-bold">{toolLabel} Under Maintenance</h2>
+            <p className="text-muted-foreground text-sm max-w-sm mx-auto leading-relaxed">
+              {maintenance.tools[activeTool].message || `We are performing routine upgrades and maintenance on ${toolLabel}. It will be back online soon!`}
             </p>
           </div>
-          <div className="w-full max-w-[200px] flex flex-col gap-3">
+          <div className="w-full max-w-[220px] flex flex-col gap-3">
+            <Button 
+              onClick={() => setActiveTool('tools-list')}
+              className="w-full bg-primary font-bold shadow-md"
+            >
+              Back to Tools
+            </Button>
             <Button 
               onClick={() => setActiveTool('dashboard')}
               variant="outline"
               className="w-full"
             >
-              Back to Dashboard
+              Go to Dashboard
             </Button>
           </div>
         </div>
@@ -184,6 +196,45 @@ export default function AppRoot() {
       <div className="w-full h-full flex flex-col bg-background">
         <main className="flex-1 overflow-y-auto">
           <DashboardSkeleton />
+        </main>
+      </div>
+    );
+  }
+
+  // 1. Check if user is blacklisted
+  const isBanned = (bannedEmails || []).some(
+    (b) => b.trim().toLowerCase() === profile.email?.trim().toLowerCase()
+  );
+
+  if (isBanned && !isOwner) {
+    return (
+      <div className="w-full h-full flex flex-col items-center justify-center bg-background px-6 text-center space-y-6">
+        <div className="w-20 h-20 rounded-3xl bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-500">
+          <ShieldAlert className="w-10 h-10" />
+        </div>
+        <div className="space-y-2 max-w-sm">
+          <span className="px-3 py-1 rounded-full bg-red-500/10 text-red-500 text-xs font-bold uppercase tracking-wider border border-red-500/20">
+            Access Suspended
+          </span>
+          <h2 className="text-2xl font-black text-foreground">Account Banned</h2>
+          <p className="text-sm text-muted-foreground leading-relaxed">
+            Your account ({profile.email}) has been permanently suspended by the platform administrator for violating terms of service.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // 3. Stealth Decoy Mode (Disguise entire app as a plain simple calculator)
+  if (stealthMode && !isOwner) {
+    return (
+      <div className="w-full h-full flex flex-col bg-background">
+        <header className="h-12 border-b border-border/40 px-4 flex items-center justify-between shrink-0 bg-background/80 backdrop-blur-md">
+          <span className="font-bold text-sm tracking-tight text-foreground">Calculator</span>
+          <span className="text-[10px] text-muted-foreground font-mono">v1.0.4</span>
+        </header>
+        <main className="flex-1 overflow-hidden p-3 pb-4">
+          <Calculator onToggleFullScreen={() => {}} />
         </main>
       </div>
     );
@@ -337,9 +388,15 @@ export default function AppRoot() {
 
         {/* Calculator: full height, no scroll */}
         {activeTool === 'calculator' && (
-          <div className="h-full flex flex-col overflow-hidden px-3 pb-2 pt-2">
-            <Calculator onToggleFullScreen={() => {}} />
-          </div>
+          maintenance.tools?.['calculator']?.is_maintenance ? (
+            <div className="w-full flex flex-col flex-1 pb-6 pt-2">
+              {renderActiveTool()}
+            </div>
+          ) : (
+            <div className="h-full flex flex-col overflow-hidden px-3 pb-2 pt-2">
+              <Calculator onToggleFullScreen={() => {}} />
+            </div>
+          )
         )}
 
         {/* All other tools */}
