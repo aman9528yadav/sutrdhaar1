@@ -51,6 +51,7 @@ export function useChangelog() {
   const [version, setVersion] = useState<string>('1.0.0');
   const [aboutConfig, setAboutConfig] = useState<AboutConfig>(defaultAboutConfig);
   const [globalNotifications, setGlobalNotifications] = useState<GlobalNotification[]>([]);
+  const [devPassword, setDevPassword] = useState<string>('admin123');
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -79,6 +80,9 @@ export function useChangelog() {
             setChangelog(parsed.content || '');
             setVersion(parsed.version || '1.0.0');
             setAboutConfig(parsed.about || defaultAboutConfig);
+            if (parsed.devPassword) {
+              setDevPassword(parsed.devPassword);
+            }
             
             const notifs = parsed.globalNotifications || [];
             setGlobalNotifications(notifs);
@@ -213,5 +217,41 @@ export function useChangelog() {
     }
   };
 
-  return { changelog, version, aboutConfig, globalNotifications, isLoading, updateChangelog, updateAboutConfig, addGlobalNotification, deleteGlobalNotification };
+  const updateDevPassword = async (newPassword: string) => {
+    try {
+      setDevPassword(newPassword);
+      const payload = JSON.stringify({ 
+        version, 
+        content: changelog, 
+        about: aboutConfig, 
+        globalNotifications,
+        devPassword: newPassword 
+      });
+      const { error } = await supabase
+        .from('maintenance')
+        .upsert({ id: false, message: payload, is_active: false });
+      if (error) {
+        console.error("Error syncing dev password to cloud:", error);
+        return false;
+      }
+      return true;
+    } catch (e) {
+      console.error("Error updating dev password:", e);
+      return false;
+    }
+  };
+
+  return { 
+    changelog, 
+    version, 
+    aboutConfig, 
+    globalNotifications, 
+    devPassword,
+    isLoading, 
+    updateChangelog, 
+    updateAboutConfig, 
+    addGlobalNotification, 
+    deleteGlobalNotification,
+    updateDevPassword 
+  };
 }

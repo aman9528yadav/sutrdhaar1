@@ -28,7 +28,7 @@ export function RandomizerTool() {
   const [diceCount, setDiceCount] = useState<1 | 2>(1);
   const [diceValues, setDiceValues] = useState<number[]>([1]);
   const [diceRolling, setDiceRolling] = useState(false);
-  const [diceRotations, setDiceRotations] = useState<{ x: number; y: number }[]>([{ x: 0, y: 0 }]);
+  const [diceRollCount, setDiceRollCount] = useState(0);
 
   // 2. 3D Coin Toss State
   const [coinResult, setCoinResult] = useState<'HEADS' | 'TAILS'>('HEADS');
@@ -46,42 +46,20 @@ export function RandomizerTool() {
   const [decisionResult, setDecisionResult] = useState<string | null>(null);
   const [isDeciding, setIsDeciding] = useState(false);
 
-  // Dice face rotations targeting each face: 1 (front), 6 (back), 3 (right), 4 (left), 2 (top), 5 (bottom)
-  const faceRotations: Record<number, { x: number; y: number }> = {
-    1: { x: 0, y: 0 },
-    2: { x: -90, y: 0 },
-    3: { x: 0, y: -90 },
-    4: { x: 0, y: 90 },
-    5: { x: 90, y: 0 },
-    6: { x: 0, y: 180 },
-  };
-
   const rollDice = () => {
     if (diceRolling) return;
     setDiceRolling(true);
+    setDiceRollCount(prev => prev + 1);
 
     const newValues: number[] = [];
-    const newRotations: { x: number; y: number }[] = [];
-
     for (let i = 0; i < diceCount; i++) {
-      const val = Math.floor(Math.random() * 6) + 1;
-      newValues.push(val);
-      // Add extra full 360-degree spins for realistic physics
-      const extraSpinsX = (Math.floor(Math.random() * 3) + 2) * 360;
-      const extraSpinsY = (Math.floor(Math.random() * 3) + 2) * 360;
-      const base = faceRotations[val];
-      newRotations.push({
-        x: base.x + extraSpinsX,
-        y: base.y + extraSpinsY,
-      });
+      newValues.push(Math.floor(Math.random() * 6) + 1);
     }
-
-    setDiceRotations(newRotations);
 
     setTimeout(() => {
       setDiceValues(newValues);
       setDiceRolling(false);
-    }, 1200);
+    }, 900);
   };
 
   const flipCoin = () => {
@@ -204,13 +182,13 @@ export function RandomizerTool() {
             {/* Toggle 1 or 2 dice */}
             <div className="flex items-center gap-1 bg-muted/40 p-1 rounded-xl border border-border/50 text-xs font-bold">
               <button
-                onClick={() => { setDiceCount(1); setDiceValues([1]); setDiceRotations([{ x: 0, y: 0 }]); }}
+                onClick={() => { setDiceCount(1); setDiceValues([1]); }}
                 className={`px-2.5 py-1 rounded-lg transition-all ${diceCount === 1 ? 'bg-primary text-white shadow-sm' : 'text-muted-foreground'}`}
               >
                 1 Dice
               </button>
               <button
-                onClick={() => { setDiceCount(2); setDiceValues([1, 1]); setDiceRotations([{ x: 0, y: 0 }, { x: 0, y: 0 }]); }}
+                onClick={() => { setDiceCount(2); setDiceValues([1, 1]); }}
                 className={`px-2.5 py-1 rounded-lg transition-all ${diceCount === 2 ? 'bg-primary text-white shadow-sm' : 'text-muted-foreground'}`}
               >
                 2 Dice
@@ -219,31 +197,57 @@ export function RandomizerTool() {
           </div>
 
           {/* 3D Dice Stage */}
-          <div className="flex items-center justify-center gap-8 py-8 w-full min-h-[160px] perspective-[800px]">
+          <div className="flex items-center justify-center gap-8 py-8 w-full min-h-[160px]">
             {Array.from({ length: diceCount }).map((_, idx) => {
-              const rot = diceRotations[idx] || { x: 0, y: 0 };
               const val = diceValues[idx] || 1;
 
               return (
-                <motion.div
-                  key={idx}
-                  animate={{
-                    rotateX: rot.x,
-                    rotateY: rot.y,
-                    scale: diceRolling ? [1, 1.25, 0.9, 1] : 1,
-                  }}
-                  transition={{ duration: 1.2, ease: [0.25, 1, 0.5, 1] }}
-                  className="cursor-pointer select-none"
-                  onClick={rollDice}
-                >
-                  {/* Styled High-res 3D Cube representation */}
-                  <div className="w-20 h-20 rounded-2xl bg-white shadow-2xl border-2 border-zinc-300 flex items-center justify-center relative overflow-hidden transform hover:scale-105 transition-transform duration-200">
-                    <div className="absolute inset-0 bg-gradient-to-br from-white via-zinc-100 to-zinc-300 pointer-events-none" />
-                    <div className="relative z-10 scale-110">
-                      {renderDots(val)}
+                <div key={idx} className="relative flex flex-col items-center">
+                  <motion.div
+                    animate={diceRolling ? {
+                      rotateX: [0, 180, 360, 540, 720],
+                      rotateY: [0, 240, 480, 720],
+                      rotateZ: [0, -90, 90, 0],
+                      y: [0, -35, 10, -15, 0],
+                      scale: [1, 1.2, 0.88, 1.05, 1],
+                    } : {
+                      rotateX: 0,
+                      rotateY: 0,
+                      rotateZ: 0,
+                      y: 0,
+                      scale: 1,
+                    }}
+                    transition={{
+                      duration: 0.9,
+                      ease: "easeInOut",
+                    }}
+                    className="cursor-pointer select-none"
+                    onClick={rollDice}
+                    style={{ transformStyle: 'preserve-3d' }}
+                  >
+                    {/* Realistic 3D White Dice Tile */}
+                    <div className="w-20 h-20 rounded-2xl bg-white shadow-2xl border-2 border-zinc-200 flex items-center justify-center relative overflow-hidden transform hover:scale-105 active:scale-95 transition-transform duration-200 ring-4 ring-black/5 dark:ring-white/10">
+                      {/* Subtle specular highlights and gradient for tactile 3D look */}
+                      <div className="absolute inset-0 bg-gradient-to-br from-white via-zinc-50 to-zinc-200 pointer-events-none" />
+                      <div className="absolute top-1 left-2 right-2 h-1/3 bg-gradient-to-b from-white/90 to-transparent rounded-t-xl pointer-events-none" />
+                      <div className="relative z-10 scale-110">
+                        {renderDots(val)}
+                      </div>
                     </div>
-                  </div>
-                </motion.div>
+                  </motion.div>
+                  {/* Floor Shadow during roll */}
+                  <motion.div 
+                    animate={diceRolling ? {
+                      scale: [1, 0.6, 1.3, 0.9, 1],
+                      opacity: [0.4, 0.15, 0.5, 0.3, 0.4]
+                    } : {
+                      scale: 1,
+                      opacity: 0.4
+                    }}
+                    transition={{ duration: 0.9, ease: "easeInOut" }}
+                    className="w-16 h-3 bg-black/40 blur-sm rounded-full mt-3"
+                  />
+                </div>
               );
             })}
           </div>

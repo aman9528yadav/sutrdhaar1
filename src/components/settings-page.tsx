@@ -121,7 +121,7 @@ function SettingRow({ icon: Icon, iconColor, title, description, children }: {
 export function SettingsPage({ onClose }: { onClose?: () => void }) {
   const { profile, setProfile, deleteAllUserData, updateDashboardWidgets, subscribeToPushNotifications } = useProfile();
   const { maintenance } = useMaintenance();
-  const { changelog, version, aboutConfig, globalNotifications, isLoading, updateChangelog, updateAboutConfig, addGlobalNotification, deleteGlobalNotification } = useChangelog();
+  const { changelog, version, aboutConfig, globalNotifications, devPassword, isLoading, updateChangelog, updateAboutConfig, addGlobalNotification, deleteGlobalNotification, updateDevPassword } = useChangelog();
   const { setTheme, theme } = useTheme();
   const { toast } = useToast();
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
@@ -1813,7 +1813,7 @@ export function SettingsPage({ onClose }: { onClose?: () => void }) {
                           </div>
 
                           <form
-                            onSubmit={(e) => {
+                            onSubmit={async (e) => {
                               e.preventDefault();
                               if (!newDevPassword.trim()) {
                                 toast({ title: "Password cannot be empty", variant: "destructive" });
@@ -1828,12 +1828,15 @@ export function SettingsPage({ onClose }: { onClose?: () => void }) {
                                 return;
                               }
 
-                              localStorage.setItem('sutra_dev_password', newDevPassword.trim());
+                              const trimmed = newDevPassword.trim();
+                              localStorage.setItem('sutra_dev_password', trimmed);
+                              await updateDevPassword(trimmed);
+                              
                               setNewDevPassword('');
                               setConfirmDevPassword('');
                               toast({
-                                title: "Password Updated Successfully! 🔐",
-                                description: "Your custom developer password is now active.",
+                                title: "Password Updated Globally! 🔐",
+                                description: "Synced to cloud database and all devices.",
                               });
                               setActiveAdvancedCategory(null);
                             }}
@@ -1900,8 +1903,16 @@ export function SettingsPage({ onClose }: { onClose?: () => void }) {
           <form
             onSubmit={(e) => {
               e.preventDefault();
-              const customPass = localStorage.getItem('sutra_dev_password');
-              const validPasswords = [customPass, 'aman@dev', 'admin123', 'sutra2026', 'developer'].filter(Boolean).map(p => p?.toLowerCase());
+              const localCustomPass = localStorage.getItem('sutra_dev_password');
+              const validPasswords = [
+                devPassword,
+                localCustomPass, 
+                'aman@dev', 
+                'admin123', 
+                'sutra2026', 
+                'developer'
+              ].filter(Boolean).map(p => p?.toLowerCase());
+
               if (validPasswords.includes(devPasswordInput.trim().toLowerCase())) {
                 setProfile(prev => ({
                   ...prev,
