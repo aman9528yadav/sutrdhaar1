@@ -41,6 +41,8 @@ const MembershipPage = dynamic(() => import('@/components/membership-page').then
 const SettingsPage = dynamic(() => import('@/components/settings-page').then(mod => ({ default: mod.SettingsPage })), { ssr: false });
 const ProgressionPage = dynamic(() => import('@/components/progression-page').then(mod => ({ default: mod.ProgressionPage })), { ssr: false });
 const WikipediaTool = dynamic(() => import('@/components/wikipedia-tool').then(mod => ({ default: mod.WikipediaTool })), { ssr: false });
+const QrCodeTool = dynamic(() => import('@/components/qr-code-tool').then(mod => ({ default: mod.QrCodeTool })), { ssr: false });
+const PdfToolsPage = dynamic(() => import('@/components/pdf-tools-page').then(mod => ({ default: mod.PdfToolsPage })), { ssr: false });
 import { WelcomeTour } from '@/components/welcome-tour';
 import { GlobalSearchDialog } from '@/components/global-search-dialog';
 
@@ -168,6 +170,8 @@ export default function AppRoot() {
       case 'settings': return <SettingsPage onClose={() => setActiveTool('dashboard')} />;
       case 'progression': return <ProgressionPage />;
       case 'admin-inbox': return <AdminInboxPage />;
+      case 'qr-code': return <QrCodeTool />;
+      case 'pdf': return <PdfToolsPage />;
       case 'auth': return <AuthPage onLoginSuccess={() => setActiveTool('dashboard')} />;
       default: return null;
     }

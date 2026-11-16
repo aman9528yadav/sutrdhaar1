@@ -43,10 +43,10 @@ export const allTools = [
     { id: 'news', icon: Newspaper, label: 'News', category: 'Utilities', color: 'text-sky-500', bg: 'bg-sky-500/10', externalLink: 'https://aman9528.wixstudio.com/my-site-3' },
     { id: 'about', icon: Info, label: 'About', category: 'Utilities', color: 'text-slate-500', bg: 'bg-slate-500/10' },
     { id: 'membership', icon: Gem, label: 'Membership', category: 'Utilities', color: 'text-amber-500', bg: 'bg-amber-500/10' },
+    { id: 'qr-code', icon: QrCode, label: 'QR Studio', category: 'Utilities', color: 'text-blue-500', bg: 'bg-blue-500/10' },
+    { id: 'pdf', icon: FileText, label: 'PDF Maker', category: 'Utilities', color: 'text-red-500', bg: 'bg-red-500/10' },
 
-    { id: 'pdf', icon: FileText, label: 'PDF Tools', category: 'Coming Soon', color: 'text-red-500', bg: 'bg-red-500/10', comingSoon: true },
     { id: 'image-tools', icon: Image, label: 'Image Tools', category: 'Coming Soon', color: 'text-violet-500', bg: 'bg-violet-500/10', comingSoon: true },
-    { id: 'qr-code', icon: QrCode, label: 'QR Code', category: 'Coming Soon', color: 'text-blue-600', bg: 'bg-blue-600/10', comingSoon: true },
     { id: 'color-picker', icon: Palette, label: 'Color Picker', category: 'Coming Soon', color: 'text-fuchsia-500', bg: 'bg-fuchsia-500/10', comingSoon: true },
     { id: 'hash-generator', icon: Hash, label: 'Hash Gen', category: 'Coming Soon', color: 'text-slate-600', bg: 'bg-slate-600/10', comingSoon: true },
     { id: 'code-formatter', icon: FileCode, label: 'Code Format', category: 'Coming Soon', color: 'text-teal-500', bg: 'bg-teal-500/10', comingSoon: true },
