@@ -2,13 +2,15 @@
 
 import React, { useMemo, useRef, useCallback, useState, useEffect } from 'react';
 import { useProfile } from '@/context/ProfileContext';
+import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/lib/supabaseClient';
 import { MagicEntry } from '@/components/magic-entry';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
     Flame, CheckSquare, BookText, ArrowRight,
     Calculator, Calendar, Wallet, CreditCard, ArrowRightLeft, Star, Plus, AlertCircle, Activity, Trash2, Trophy,
-    Timer, Lock, Sparkles, TrendingUp, TrendingDown, ChevronRight, Info, Heart, User, Shield, Zap, Clock, Search, ShieldAlert, Crown
+    Timer, Lock, Sparkles, TrendingUp, TrendingDown, ChevronRight, Info, Heart, User, Shield, Zap, Clock, Search, ShieldAlert, Crown, Gift, Tag, Check, Copy, PartyPopper
 } from 'lucide-react';
 import { format, isToday, subDays, startOfDay, isSameDay } from 'date-fns';
 import { DashboardWidgetItem } from '@/context/ProfileContext';
@@ -253,11 +255,15 @@ function BannerSlider({ membershipStatus, dailyInsight }: { membershipStatus: an
 }
 
 export function DashboardPage({ onToolSelect, onOpenSearch }: DashboardPageProps) {
-    const { profile, updateDashboardLayout, updateWidgetVisibility, updateWidgetSize, updateTodo, deleteTodo } = useProfile();
+    const { profile, setProfile, updateDashboardLayout, updateWidgetVisibility, updateWidgetSize, updateTodo, deleteTodo } = useProfile();
+    const { toast } = useToast();
     const { maintenance } = useMaintenance();
-    const { globalNotifications, version } = useChangelog();
+    const { globalNotifications, version, festivalCampaign } = useChangelog();
     const [isEditMode, setIsEditMode] = useState(false);
     const [isPromoBannerDismissed, setIsPromoBannerDismissed] = useState(false);
+    const [isFestivalBannerDismissed, setIsFestivalBannerDismissed] = useState(false);
+    const [isClaimingFestival, setIsClaimingFestival] = useState(false);
+    const [isFestivalCodeCopied, setIsFestivalCodeCopied] = useState(false);
 
     const isLayoutHidden = (id: string) => profile.settings?.dashboardLayout?.find(item => item.id === id)?.hidden ?? false;
 
@@ -476,6 +482,149 @@ export function DashboardPage({ onToolSelect, onOpenSearch }: DashboardPageProps
             <motion.div variants={itemVariants} className={isPromoBannerDismissed || profile.membership === 'premium' || profile.membership === 'standard' ? "pt-2" : ""}>
                 <MagicEntry />
             </motion.div>
+
+            {/* ── Festival Celebration & Free Gift Card (Enabled via Developer Mode) ── */}
+            {festivalCampaign?.enabled && !isFestivalBannerDismissed && (
+                <motion.div variants={itemVariants} className="pt-2">
+                    <Card className={`relative overflow-hidden rounded-3xl border transition-all shadow-xl ${
+                        festivalCampaign.bannerTheme === 'rose'
+                            ? 'border-rose-500/40 bg-gradient-to-br from-rose-500/15 via-card/75 to-pink-600/15 shadow-rose-500/10'
+                            : festivalCampaign.bannerTheme === 'emerald'
+                            ? 'border-emerald-500/40 bg-gradient-to-br from-emerald-500/15 via-card/75 to-teal-600/15 shadow-emerald-500/10'
+                            : festivalCampaign.bannerTheme === 'purple'
+                            ? 'border-purple-500/40 bg-gradient-to-br from-purple-500/15 via-card/75 to-indigo-600/15 shadow-purple-500/10'
+                            : festivalCampaign.bannerTheme === 'cyan'
+                            ? 'border-cyan-500/40 bg-gradient-to-br from-cyan-500/15 via-card/75 to-blue-600/15 shadow-cyan-500/10'
+                            : 'border-amber-500/40 bg-gradient-to-br from-amber-500/15 via-card/75 to-orange-600/15 shadow-amber-500/10'
+                    }`}>
+                        {/* Festive Glow */}
+                        <div className="absolute top-0 right-0 w-64 h-64 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
+
+                        <CardContent className="p-5 relative z-10">
+                            {/* Top row */}
+                            <div className="flex items-start justify-between gap-3">
+                                <div className="flex-1">
+                                    <div className="flex items-center gap-2 mb-1 flex-wrap">
+                                        <p className="text-xs font-bold text-primary uppercase tracking-widest flex items-center gap-1.5">
+                                            <Sparkles className="w-3.5 h-3.5" />
+                                            {festivalCampaign.tagline || 'Festive Special 🪔'}
+                                        </p>
+                                        <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-primary/20 text-primary border border-primary/30 flex items-center gap-1">
+                                            <Gift className="w-2.5 h-2.5" /> {festivalCampaign.badgeText || 'SPECIAL GIFT'}
+                                        </span>
+                                    </div>
+                                    <h2 className="text-2xl sm:text-3xl font-extrabold text-foreground tracking-tight leading-tight">
+                                        {festivalCampaign.festivalName || 'Happy Festival!'}
+                                    </h2>
+                                    <p className="text-muted-foreground text-xs mt-1 leading-relaxed max-w-md">
+                                        {festivalCampaign.greeting || 'Wishing you prosperity, joy and bright happiness!'}
+                                    </p>
+                                </div>
+
+                                <div className="flex items-center gap-2 shrink-0">
+                                    <div className="w-12 h-12 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center text-2xl shadow-inner">
+                                        🪔
+                                    </div>
+                                    <Button
+                                        size="icon"
+                                        variant="ghost"
+                                        className="h-8 w-8 text-muted-foreground hover:bg-white/10 rounded-full"
+                                        onClick={() => setIsFestivalBannerDismissed(true)}
+                                    >
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                                    </Button>
+                                </div>
+                            </div>
+
+                            {/* Promo Code & Instant Claim Box */}
+                            {festivalCampaign.promoCode && (
+                                <div className="mt-4 p-3.5 rounded-2xl bg-background/50 border border-border/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                                    <div className="flex items-center gap-3">
+                                        <div className="p-2 rounded-xl bg-primary/10 text-primary shrink-0">
+                                            <Tag className="w-4 h-4" />
+                                        </div>
+                                        <div>
+                                          <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block">
+                                              Exclusive Festive Promo Code
+                                          </span>
+                                          <div className="flex items-center gap-2">
+                                              <span className="font-mono text-sm font-black text-primary tracking-widest">
+                                                  {festivalCampaign.promoCode}
+                                              </span>
+                                              <button
+                                                  onClick={() => {
+                                                      navigator.clipboard.writeText(festivalCampaign.promoCode!);
+                                                      setIsFestivalCodeCopied(true);
+                                                      setTimeout(() => setIsFestivalCodeCopied(false), 2000);
+                                                  }}
+                                                  className="text-muted-foreground hover:text-foreground text-xs"
+                                                  title="Copy Code"
+                                              >
+                                                  {isFestivalCodeCopied ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+                                              </button>
+                                          </div>
+                                        </div>
+                                    </div>
+
+                                    <Button
+                                        size="sm"
+                                        disabled={isClaimingFestival || profile.membership === 'premium' || (profile.membership as any) === 'ultra'}
+                                        onClick={async () => {
+                                            setIsClaimingFestival(true);
+                                            try {
+                                                const targetTier = festivalCampaign.freeTier || 'premium';
+                                                const duration = festivalCampaign.durationDays || 7;
+                                                const expiryDate = new Date();
+                                                expiryDate.setDate(expiryDate.getDate() + duration);
+
+                                                setProfile(prev => ({
+                                                    ...prev,
+                                                    membership: targetTier as any,
+                                                    membershipExpiresAt: expiryDate.toISOString()
+                                                }));
+
+                                                if (profile.email) {
+                                                    try {
+                                                        await supabase.auth.updateUser({
+                                                            data: {
+                                                                membership: targetTier,
+                                                                membership_expires_at: expiryDate.toISOString()
+                                                            }
+                                                        });
+                                                    } catch (e) {
+                                                        console.warn("Could not sync festival claim to auth user:", e);
+                                                    }
+                                                }
+
+                                                toast({
+                                                    title: "🎉 Festival Gift Unlocked!",
+                                                    description: `You have been upgraded to ${targetTier.toUpperCase()} for ${duration} days free!`
+                                                });
+                                            } catch (err: any) {
+                                                toast({ title: "Claim failed", description: err.message, variant: "destructive" });
+                                            } finally {
+                                                setIsClaimingFestival(false);
+                                            }
+                                        }}
+                                        className="h-9 px-4 rounded-xl text-xs font-bold bg-gradient-to-r from-primary to-orange-500 hover:from-primary/90 hover:to-orange-600 text-white shadow-md shadow-primary/20 shrink-0"
+                                    >
+                                        {profile.membership === 'premium' || (profile.membership as any) === 'ultra' ? (
+                                            <span className="flex items-center gap-1.5"><Check className="w-3.5 h-3.5" /> VIP Active</span>
+                                        ) : isClaimingFestival ? (
+                                            "Claiming..."
+                                        ) : (
+                                            <span className="flex items-center gap-1.5">
+                                                <PartyPopper className="w-3.5 h-3.5" />
+                                                Claim {festivalCampaign.durationDays || 7} Days Free
+                                            </span>
+                                        )}
+                                    </Button>
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
+                </motion.div>
+            )}
 
             {/* ── Hero: Profile + XP with Member Status ── */}
             <motion.div variants={itemVariants}>

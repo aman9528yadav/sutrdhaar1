@@ -765,6 +765,17 @@ export const ProfileProvider = ({ children }: { children: ReactNode }) => {
               updated_at: new Date().toISOString()
           });
           if (error) console.error("Cloud sync error:", error);
+
+          // Register account in support_sessions so developer directory can immediately see the account
+          if (profileData.email) {
+            await supabase.from('support_sessions').upsert({
+              user_id: profileData.email.toLowerCase(),
+              user_name: profileData.name || profileData.email.split('@')[0],
+              last_updated: Date.now(),
+              unread_admin: 0,
+              unread_user: 0
+            });
+          }
         }
       } catch (err) {
         // Silently catch network drops / offline / aborted fetches to prevent app crash

@@ -46,9 +46,34 @@ const defaultAboutConfig: AboutConfig = {
   ]
 };
 
+export interface FestivalCampaign {
+  enabled: boolean;
+  festivalName: string; // e.g. "Diwali Dhamaka", "Holi Special", "Eid Mubarak", "New Year 2026"
+  tagline: string;      // e.g. "Festive Celebration Special!"
+  greeting: string;     // e.g. "Wishing you joy, prosperity & light! ✨"
+  badgeText: string;    // e.g. "FESTIVAL SPECIAL 🪔"
+  promoCode?: string;   // e.g. "DIWALI2026"
+  freeTier: string;     // e.g. "Pro" or "Ultra"
+  durationDays: number; // e.g. 7
+  bannerTheme: 'amber' | 'emerald' | 'purple' | 'rose' | 'cyan';
+}
+
+export const defaultFestivalCampaign: FestivalCampaign = {
+  enabled: false,
+  festivalName: 'Diwali Special Offer',
+  tagline: 'Festive Celebration 🪔',
+  greeting: 'May your days be filled with light, happiness and success!',
+  badgeText: 'FESTIVAL GIFT 🎁',
+  promoCode: 'FESTIVALPRO',
+  freeTier: 'premium',
+  durationDays: 7,
+  bannerTheme: 'amber'
+};
+
 export interface DevCloudConfig {
   bannedEmails?: string[];
   stealthMode?: boolean;
+  festivalCampaign?: FestivalCampaign;
 }
 
 export function useChangelog() {
@@ -59,6 +84,7 @@ export function useChangelog() {
   const [devPassword, setDevPassword] = useState<string>('admin123');
   const [bannedEmails, setBannedEmails] = useState<string[]>([]);
   const [stealthMode, setStealthMode] = useState<boolean>(false);
+  const [festivalCampaign, setFestivalCampaign] = useState<FestivalCampaign>(defaultFestivalCampaign);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -95,6 +121,9 @@ export function useChangelog() {
             }
             if (typeof parsed.stealthMode === 'boolean') {
               setStealthMode(parsed.stealthMode);
+            }
+            if (parsed.festivalCampaign) {
+              setFestivalCampaign({ ...defaultFestivalCampaign, ...parsed.festivalCampaign });
             }
             
             const notifs = parsed.globalNotifications || [];
@@ -142,6 +171,7 @@ export function useChangelog() {
               setGlobalNotifications(parsed.globalNotifications || []);
               if (Array.isArray(parsed.bannedEmails)) setBannedEmails(parsed.bannedEmails);
               if (typeof parsed.stealthMode === 'boolean') setStealthMode(parsed.stealthMode);
+              if (parsed.festivalCampaign) setFestivalCampaign({ ...defaultFestivalCampaign, ...parsed.festivalCampaign });
               if (parsed.devPassword) setDevPassword(parsed.devPassword);
             } catch (e) {
               setChangelog(newRecord.message);
@@ -163,7 +193,7 @@ export function useChangelog() {
 
   const updateChangelog = async (newVersion: string, newChangelog: string) => {
     try {
-      const payload = JSON.stringify({ version: newVersion, content: newChangelog, about: aboutConfig });
+      const payload = JSON.stringify({ version: newVersion, content: newChangelog, about: aboutConfig, globalNotifications, devPassword, bannedEmails, stealthMode, festivalCampaign });
       const { error } = await supabase
         .from('maintenance')
         .upsert({ id: false, message: payload, is_active: false });
@@ -181,7 +211,7 @@ export function useChangelog() {
 
   const updateAboutConfig = async (newAboutConfig: AboutConfig) => {
     try {
-      const payload = JSON.stringify({ version, content: changelog, about: newAboutConfig, globalNotifications });
+      const payload = JSON.stringify({ version, content: changelog, about: newAboutConfig, globalNotifications, devPassword, bannedEmails, stealthMode, festivalCampaign });
       const { error } = await supabase
         .from('maintenance')
         .upsert({ id: false, message: payload, is_active: false });
@@ -205,7 +235,7 @@ export function useChangelog() {
         timestamp: new Date().toISOString()
       };
       const updatedList = [newNotif, ...globalNotifications];
-      const payload = JSON.stringify({ version, content: changelog, about: aboutConfig, globalNotifications: updatedList });
+      const payload = JSON.stringify({ version, content: changelog, about: aboutConfig, globalNotifications: updatedList, devPassword, bannedEmails, stealthMode, festivalCampaign });
       const { error } = await supabase
         .from('maintenance')
         .upsert({ id: false, message: payload, is_active: false });
@@ -219,7 +249,7 @@ export function useChangelog() {
   const deleteGlobalNotification = async (id: string) => {
     try {
       const updatedList = globalNotifications.filter(n => n.id !== id);
-      const payload = JSON.stringify({ version, content: changelog, about: aboutConfig, globalNotifications: updatedList });
+      const payload = JSON.stringify({ version, content: changelog, about: aboutConfig, globalNotifications: updatedList, devPassword, bannedEmails, stealthMode, festivalCampaign });
       const { error } = await supabase
         .from('maintenance')
         .upsert({ id: false, message: payload, is_active: false });
@@ -241,6 +271,7 @@ export function useChangelog() {
         devPassword: newPassword,
         bannedEmails,
         stealthMode,
+        festivalCampaign,
       });
       const { error } = await supabase
         .from('maintenance')
@@ -267,6 +298,7 @@ export function useChangelog() {
         devPassword,
         bannedEmails: newList,
         stealthMode,
+        festivalCampaign,
       });
       const { error } = await supabase
         .from('maintenance')
@@ -290,6 +322,7 @@ export function useChangelog() {
         devPassword,
         bannedEmails,
         stealthMode: enabled,
+        festivalCampaign,
       });
       const { error } = await supabase
         .from('maintenance')
@@ -302,6 +335,30 @@ export function useChangelog() {
     }
   };
 
+  const updateFestivalCampaign = async (campaign: FestivalCampaign) => {
+    try {
+      setFestivalCampaign(campaign);
+      const payload = JSON.stringify({
+        version,
+        content: changelog,
+        about: aboutConfig,
+        globalNotifications,
+        devPassword,
+        bannedEmails,
+        stealthMode,
+        festivalCampaign: campaign,
+      });
+      const { error } = await supabase
+        .from('maintenance')
+        .upsert({ id: false, message: payload, is_active: false });
+      if (error) throw error;
+      return true;
+    } catch (e) {
+      console.error("Error updating festival campaign:", e);
+      return false;
+    }
+  };
+
   return { 
     changelog, 
     version, 
@@ -310,6 +367,7 @@ export function useChangelog() {
     devPassword,
     bannedEmails,
     stealthMode,
+    festivalCampaign,
     isLoading, 
     updateChangelog, 
     updateAboutConfig, 
@@ -317,6 +375,7 @@ export function useChangelog() {
     deleteGlobalNotification,
     updateDevPassword,
     updateBannedEmails,
-    updateStealthMode
+    updateStealthMode,
+    updateFestivalCampaign
   };
 }

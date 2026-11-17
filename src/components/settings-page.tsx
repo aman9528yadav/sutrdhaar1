@@ -50,10 +50,11 @@ import {
 import { useTheme } from 'next-themes';
 import { EditWidgetsDialog } from './edit-widgets-dialog';
 import { FaqManager } from './faq-manager';
-import { Download, Upload, Trash2, HelpCircle, Copy, Check, Search, Layers, Clock, Mail, PauseCircle, PlayCircle, Lock, KeyRound, Radio, MessageSquare, DatabaseZap, RefreshCw, Send, CheckCircle2, UserX, ShieldOff, Eye, Ban, Fingerprint, ShieldCheck } from 'lucide-react';
+import { Download, Upload, Trash2, HelpCircle, Copy, Check, Search, Layers, Clock, Mail, PauseCircle, PlayCircle, Lock, KeyRound, Radio, MessageSquare, DatabaseZap, RefreshCw, Send, CheckCircle2, UserX, ShieldOff, Eye, Ban, Fingerprint, ShieldCheck, Users } from 'lucide-react';
 import { isBiometricsAvailable, registerBiometricCredential, hashPin } from '@/lib/biometrics';
 import { hasUnlockedFeature } from '@/lib/level-system';
 import { useToast } from '@/hooks/use-toast';
+import { DevUserInspector } from '@/components/dev-user-inspector';
 
 const appThemes = [
   { id: 'light', label: 'Light', icon: Sun, preview: 'bg-white border-gray-200' },
@@ -122,7 +123,7 @@ function SettingRow({ icon: Icon, iconColor, title, description, children }: {
 export function SettingsPage({ onClose }: { onClose?: () => void }) {
   const { profile, setProfile, deleteAllUserData, updateDashboardWidgets, subscribeToPushNotifications } = useProfile();
   const { maintenance } = useMaintenance();
-  const { changelog, version, aboutConfig, globalNotifications, devPassword, bannedEmails, stealthMode, isLoading, updateChangelog, updateAboutConfig, addGlobalNotification, deleteGlobalNotification, updateDevPassword, updateBannedEmails, updateStealthMode } = useChangelog();
+  const { changelog, version, aboutConfig, globalNotifications, devPassword, bannedEmails, stealthMode, festivalCampaign, isLoading, updateChangelog, updateAboutConfig, addGlobalNotification, deleteGlobalNotification, updateDevPassword, updateBannedEmails, updateStealthMode, updateFestivalCampaign } = useChangelog();
   const { setTheme, theme } = useTheme();
   const { toast } = useToast();
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
@@ -158,6 +159,32 @@ export function SettingsPage({ onClose }: { onClose?: () => void }) {
   const [isDevPasswordModalOpen, setIsDevPasswordModalOpen] = useState(false);
   const [devPasswordInput, setDevPasswordInput] = useState('');
   const [devPasswordError, setDevPasswordError] = useState(false);
+
+  // Festival Campaign state in Developer Mode
+  const [festEnabled, setFestEnabled] = useState(false);
+  const [festName, setFestName] = useState('Diwali Special Offer');
+  const [festTagline, setFestTagline] = useState('Festive Celebration 🪔');
+  const [festGreeting, setFestGreeting] = useState('May your days be filled with light, happiness and success!');
+  const [festBadgeText, setFestBadgeText] = useState('FESTIVAL GIFT 🎁');
+  const [festPromoCode, setFestPromoCode] = useState('FESTIVALPRO');
+  const [festFreeTier, setFestFreeTier] = useState('premium');
+  const [festDurationDays, setFestDurationDays] = useState(7);
+  const [festTheme, setFestTheme] = useState<'amber' | 'emerald' | 'purple' | 'rose' | 'cyan'>('amber');
+  const [isSavingFestival, setIsSavingFestival] = useState(false);
+
+  React.useEffect(() => {
+    if (festivalCampaign) {
+      setFestEnabled(Boolean(festivalCampaign.enabled));
+      setFestName(festivalCampaign.festivalName || 'Diwali Special Offer');
+      setFestTagline(festivalCampaign.tagline || 'Festive Celebration 🪔');
+      setFestGreeting(festivalCampaign.greeting || 'May your days be filled with light, happiness and success!');
+      setFestBadgeText(festivalCampaign.badgeText || 'FESTIVAL GIFT 🎁');
+      setFestPromoCode(festivalCampaign.promoCode || 'FESTIVALPRO');
+      setFestFreeTier(festivalCampaign.freeTier || 'premium');
+      setFestDurationDays(festivalCampaign.durationDays || 7);
+      setFestTheme(festivalCampaign.bannerTheme || 'amber');
+    }
+  }, [festivalCampaign]);
 
   // Biometric & App Lock setup state
   const [isBiometricSetupOpen, setIsBiometricSetupOpen] = useState(false);
@@ -1297,6 +1324,50 @@ export function SettingsPage({ onClose }: { onClose?: () => void }) {
                   <div className="space-y-2">
                     <motion.div
                       whileTap={{ scale: 0.98 }}
+                      onClick={() => setActiveAdvancedCategory('festival-campaign')}
+                      className="flex items-center justify-between p-4 rounded-2xl border border-rose-500/20 bg-rose-500/5 hover:bg-rose-500/10 transition-colors cursor-pointer"
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="p-2.5 rounded-xl bg-rose-500/10">
+                          <Sparkles className="w-5 h-5 text-rose-500" />
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <h3 className="font-semibold text-foreground text-sm">Festival Event & Free Code</h3>
+                            <span className={`px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider rounded-md ${
+                              festivalCampaign?.enabled ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'
+                            }`}>
+                              {festivalCampaign?.enabled ? 'Active 🪔' : 'Disabled'}
+                            </span>
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-0.5">Show celebratory greeting card with free Pro gift code on users' dashboard</p>
+                        </div>
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                    </motion.div>
+
+                    <motion.div
+                      whileTap={{ scale: 0.98 }}
+                      onClick={() => setActiveAdvancedCategory('user-directory')}
+                      className="flex items-center justify-between p-4 rounded-2xl border border-amber-500/20 bg-amber-500/5 hover:bg-amber-500/10 transition-colors cursor-pointer"
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="p-2.5 rounded-xl bg-amber-500/10">
+                          <Users className="w-5 h-5 text-amber-500" />
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <h3 className="font-semibold text-foreground text-sm">User Directory & Accounts</h3>
+                            <span className="px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider rounded-md bg-amber-500/20 text-amber-400">Database</span>
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-0.5">Search user names, view plans, join date, usage & account details</p>
+                        </div>
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                    </motion.div>
+
+                    <motion.div
+                      whileTap={{ scale: 0.98 }}
                       onClick={() => setActiveAdvancedCategory('maintenance')}
                       className="flex items-center justify-between p-4 rounded-2xl border border-red-500/20 bg-red-500/5 hover:bg-red-500/10 transition-colors cursor-pointer"
                     >
@@ -1561,6 +1632,230 @@ export function SettingsPage({ onClose }: { onClose?: () => void }) {
                   </div>
                 ) : (
                   <div className="space-y-8 animate-in slide-in-from-right-4 duration-300">
+                    {/* Festival Campaign Config Screen */}
+                    {activeAdvancedCategory === 'festival-campaign' && (
+                      <div className="space-y-5">
+                        <div className="p-6 rounded-[2rem] border border-rose-500/20 bg-rose-500/5 backdrop-blur-xl shadow-lg space-y-5">
+                          <div className="pb-3 border-b border-rose-500/10 flex items-center justify-between">
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <Sparkles className="w-5 h-5 text-rose-400" />
+                                <Label className="font-bold text-foreground text-base">Festival Event & Free Code Card</Label>
+                              </div>
+                              <p className="text-xs text-muted-foreground mt-0.5">
+                                Broadcast a festive card on user dashboards with custom greetings and a free promo code!
+                              </p>
+                            </div>
+                            <Switch
+                              checked={festEnabled}
+                              onCheckedChange={setFestEnabled}
+                              className="data-[state=checked]:bg-rose-500"
+                            />
+                          </div>
+
+                          {/* Live Preview of the Festival Card */}
+                          <div className="space-y-2">
+                            <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Live User Dashboard Preview</Label>
+                            <div className={`p-5 rounded-3xl border relative overflow-hidden shadow-xl ${
+                              festTheme === 'rose'
+                                ? 'border-rose-500/40 bg-gradient-to-br from-rose-500/15 via-card/70 to-pink-600/15'
+                                : festTheme === 'emerald'
+                                ? 'border-emerald-500/40 bg-gradient-to-br from-emerald-500/15 via-card/70 to-teal-600/15'
+                                : festTheme === 'purple'
+                                ? 'border-purple-500/40 bg-gradient-to-br from-purple-500/15 via-card/70 to-indigo-600/15'
+                                : festTheme === 'cyan'
+                                ? 'border-cyan-500/40 bg-gradient-to-br from-cyan-500/15 via-card/70 to-blue-600/15'
+                                : 'border-amber-500/40 bg-gradient-to-br from-amber-500/15 via-card/70 to-orange-600/15'
+                            }`}>
+                              <div className="flex items-start justify-between gap-3">
+                                <div>
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <span className="text-xs font-bold uppercase tracking-widest text-primary">
+                                      {festTagline || 'Festival Special 🪔'}
+                                    </span>
+                                    <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-rose-500/20 text-rose-400 border border-rose-500/30">
+                                      {festBadgeText || 'Special Gift'}
+                                    </span>
+                                  </div>
+                                  <h3 className="text-2xl font-black text-foreground tracking-tight">
+                                    {festName || 'Happy Festival!'}
+                                  </h3>
+                                  <p className="text-xs text-muted-foreground mt-1 max-w-sm">
+                                    {festGreeting || 'Wishing you prosperity and happiness!'}
+                                  </p>
+                                </div>
+                                <div className="p-3 rounded-2xl bg-primary/10 border border-primary/20 text-primary text-xl">
+                                  🪔
+                                </div>
+                              </div>
+
+                              {festPromoCode && (
+                                <div className="mt-4 p-3 rounded-2xl bg-card/60 border border-border/40 flex items-center justify-between">
+                                  <div>
+                                    <span className="text-[10px] font-bold uppercase text-muted-foreground block">Free Code</span>
+                                    <span className="font-mono text-sm font-black text-primary tracking-widest">{festPromoCode}</span>
+                                  </div>
+                                  <Button size="sm" className="h-8 rounded-xl text-xs font-bold bg-primary text-primary-foreground">
+                                    Claim {festDurationDays} Days {festFreeTier} Free
+                                  </Button>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Settings Form */}
+                          <form
+                            onSubmit={async (e) => {
+                              e.preventDefault();
+                              setIsSavingFestival(true);
+                              try {
+                                const newCampaign = {
+                                  enabled: festEnabled,
+                                  festivalName: festName.trim(),
+                                  tagline: festTagline.trim(),
+                                  greeting: festGreeting.trim(),
+                                  badgeText: festBadgeText.trim(),
+                                  promoCode: festPromoCode.trim().toUpperCase(),
+                                  freeTier: festFreeTier,
+                                  durationDays: Number(festDurationDays) || 7,
+                                  bannerTheme: festTheme,
+                                };
+
+                                // Also ensure the promo code is automatically inserted into membership_codes so users can redeem it
+                                if (festEnabled && festPromoCode.trim()) {
+                                  try {
+                                    await supabase.from('membership_codes').upsert({
+                                      code: festPromoCode.trim().toUpperCase(),
+                                      tier: festFreeTier,
+                                      duration_days: Number(festDurationDays) || 7,
+                                      is_used: false,
+                                      assigned_name: 'Festival Special Event',
+                                      assigned_email: 'all_users@festival'
+                                    });
+                                  } catch (err) {
+                                    console.warn("Could not upsert promo code:", err);
+                                  }
+                                }
+
+                                const success = await updateFestivalCampaign(newCampaign);
+                                if (success) {
+                                  toast({
+                                    title: festEnabled ? "Festival Campaign Live! 🪔" : "Festival Campaign Disabled",
+                                    description: festEnabled 
+                                      ? "Card & Free Code are now visible on users' dashboard."
+                                      : "Festival card hidden from user screens."
+                                  });
+                                } else {
+                                  toast({ title: "Failed to update campaign", variant: "destructive" });
+                                }
+                              } catch (err: any) {
+                                toast({ title: "Error saving campaign", description: err.message, variant: "destructive" });
+                              } finally {
+                                setIsSavingFestival(false);
+                              }
+                            }}
+                            className="space-y-4 pt-2"
+                          >
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                              <div className="space-y-1.5">
+                                <Label className="text-xs font-bold text-muted-foreground uppercase">Festival Name / Title</Label>
+                                <Input
+                                  value={festName}
+                                  onChange={e => setFestName(e.target.value)}
+                                  placeholder="e.g. Diwali Dhamaka 🪔"
+                                  className="h-10 rounded-xl bg-card/50"
+                                />
+                              </div>
+
+                              <div className="space-y-1.5">
+                                <Label className="text-xs font-bold text-muted-foreground uppercase">Tagline / Header</Label>
+                                <Input
+                                  value={festTagline}
+                                  onChange={e => setFestTagline(e.target.value)}
+                                  placeholder="e.g. Festive Celebration ✨"
+                                  className="h-10 rounded-xl bg-card/50"
+                                />
+                              </div>
+
+                              <div className="space-y-1.5 sm:col-span-2">
+                                <Label className="text-xs font-bold text-muted-foreground uppercase">Greeting Message</Label>
+                                <Input
+                                  value={festGreeting}
+                                  onChange={e => setFestGreeting(e.target.value)}
+                                  placeholder="e.g. Wishing you prosperity, joy and happiness!"
+                                  className="h-10 rounded-xl bg-card/50"
+                                />
+                              </div>
+
+                              <div className="space-y-1.5">
+                                <Label className="text-xs font-bold text-muted-foreground uppercase">Promo Code</Label>
+                                <Input
+                                  value={festPromoCode}
+                                  onChange={e => setFestPromoCode(e.target.value.toUpperCase())}
+                                  placeholder="e.g. DIWALI2026"
+                                  className="h-10 rounded-xl font-mono uppercase bg-card/50"
+                                />
+                              </div>
+
+                              <div className="space-y-1.5">
+                                <Label className="text-xs font-bold text-muted-foreground uppercase">Badge Text</Label>
+                                <Input
+                                  value={festBadgeText}
+                                  onChange={e => setFestBadgeText(e.target.value)}
+                                  placeholder="e.g. FESTIVAL SPECIAL 🎁"
+                                  className="h-10 rounded-xl bg-card/50"
+                                />
+                              </div>
+
+                              <div className="space-y-1.5">
+                                <Label className="text-xs font-bold text-muted-foreground uppercase">Free Days Given</Label>
+                                <Input
+                                  type="number"
+                                  value={festDurationDays}
+                                  onChange={e => setFestDurationDays(Number(e.target.value))}
+                                  className="h-10 rounded-xl bg-card/50"
+                                />
+                              </div>
+
+                              <div className="space-y-1.5">
+                                <Label className="text-xs font-bold text-muted-foreground uppercase">Theme Color</Label>
+                                <div className="flex gap-2 pt-1">
+                                  {(['amber', 'emerald', 'purple', 'rose', 'cyan'] as const).map(color => (
+                                    <button
+                                      type="button"
+                                      key={color}
+                                      onClick={() => setFestTheme(color)}
+                                      className={`w-8 h-8 rounded-full border-2 transition-transform capitalize ${
+                                        color === 'amber' ? 'bg-amber-500' :
+                                        color === 'emerald' ? 'bg-emerald-500' :
+                                        color === 'purple' ? 'bg-purple-500' :
+                                        color === 'rose' ? 'bg-rose-500' : 'bg-cyan-500'
+                                      } ${festTheme === color ? 'scale-110 border-white shadow-lg' : 'border-transparent opacity-70'}`}
+                                    />
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="pt-2">
+                              <Button
+                                type="submit"
+                                disabled={isSavingFestival}
+                                className="w-full h-11 rounded-2xl font-bold bg-gradient-to-r from-rose-500 via-orange-500 to-amber-500 text-white shadow-lg shadow-rose-500/20"
+                              >
+                                {isSavingFestival ? "Saving..." : festEnabled ? "Save & Activate Festival Card Live 🪔" : "Save Changes"}
+                              </Button>
+                            </div>
+                          </form>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* User Directory & Accounts Screen */}
+                    {activeAdvancedCategory === 'user-directory' && (
+                      <DevUserInspector />
+                    )}
+
                     {activeAdvancedCategory === 'maintenance' && (
                       <div className="space-y-4">
                         <h2 className="text-sm font-bold text-red-500 uppercase tracking-wider pl-1 flex items-center gap-2">
