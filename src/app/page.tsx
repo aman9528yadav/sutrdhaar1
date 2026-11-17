@@ -47,6 +47,7 @@ const PdfToolsPage = dynamic(() => import('@/components/pdf-tools-page').then(mo
 const RandomizerTool = dynamic(() => import('@/components/randomizer-tool').then(mod => ({ default: mod.RandomizerTool })), { ssr: false });
 import { WelcomeTour } from '@/components/welcome-tour';
 import { GlobalSearchDialog } from '@/components/global-search-dialog';
+import { BiometricLockModal } from '@/components/biometric-lock-modal';
 
 export default function AppRoot() {
   const { profile, isAuthLoading, setProfile } = useProfile();
@@ -55,6 +56,27 @@ export default function AppRoot() {
   const [activeTool, setActiveTool] = useState<string>('dashboard');
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isBypassed, setIsBypassed] = useState(false);
+
+  // Biometric & App Lock state
+  const [isBiometricPromptOpen, setIsBiometricPromptOpen] = useState(false);
+  const [pendingToolTarget, setPendingToolTarget] = useState<string | null>(null);
+  const [isSessionUnlocked, setIsSessionUnlocked] = useState(false);
+
+  // Tools that require biometric unlock when enableBiometricAuth is on
+  const SENSITIVE_TOOLS = ['notes', 'budget-tracker', 'password-generator', 'todo'];
+
+  const handleNavigateTool = (toolId: string) => {
+    if (
+      profile.settings?.enableBiometricAuth &&
+      !isSessionUnlocked &&
+      SENSITIVE_TOOLS.includes(toolId)
+    ) {
+      setPendingToolTarget(toolId);
+      setIsBiometricPromptOpen(true);
+      return;
+    }
+    setActiveTool(toolId);
+  };
   
   const isOwner = profile.email === 'amanyadavyadav9458@gmail.com';
   const isToolActive = activeTool !== 'dashboard' && activeTool !== 'tools-list';
@@ -383,8 +405,8 @@ export default function AppRoot() {
       )}
       
       <main className={`flex-1 ${activeTool === 'calculator' ? 'overflow-hidden' : 'overflow-y-auto'}`}>
-        {activeTool === 'dashboard' && <DashboardPage onToolSelect={setActiveTool} onOpenSearch={() => setIsSearchOpen(true)} />}
-        {activeTool === 'tools-list' && <ToolsPage onToolSelect={setActiveTool} />}
+        {activeTool === 'dashboard' && <DashboardPage onToolSelect={handleNavigateTool} onOpenSearch={() => setIsSearchOpen(true)} />}
+        {activeTool === 'tools-list' && <ToolsPage onToolSelect={handleNavigateTool} />}
 
         {/* Calculator: full height, no scroll */}
         {activeTool === 'calculator' && (
@@ -409,12 +431,31 @@ export default function AppRoot() {
 
       {!profile.isGuest && <AiAssistant />}
       {activeTool === 'dashboard' && <ChatWidget />}
-      <BottomNav activeTab={activeTool} onTabSelect={setActiveTool} />
+      <BottomNav activeTab={activeTool} onTabSelect={handleNavigateTool} />
 
       <GlobalSearchDialog 
         open={isSearchOpen} 
         onOpenChange={setIsSearchOpen} 
-        onNavigate={setActiveTool} 
+        onNavigate={handleNavigateTool} 
+      />
+
+      {/* Biometric & 4-Digit PIN Security Modal */}
+      <BiometricLockModal
+        isOpen={isBiometricPromptOpen}
+        title="Secure Area"
+        description="Verify fingerprint or enter your 4-digit PIN to open this sensitive tool."
+        onSuccess={() => {
+          setIsBiometricPromptOpen(false);
+          setIsSessionUnlocked(true);
+          if (pendingToolTarget) {
+            setActiveTool(pendingToolTarget);
+            setPendingToolTarget(null);
+          }
+        }}
+        onCancel={() => {
+          setIsBiometricPromptOpen(false);
+          setPendingToolTarget(null);
+        }}
       />
     </div>
   );

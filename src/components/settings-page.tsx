@@ -50,7 +50,8 @@ import {
 import { useTheme } from 'next-themes';
 import { EditWidgetsDialog } from './edit-widgets-dialog';
 import { FaqManager } from './faq-manager';
-import { Download, Upload, Trash2, HelpCircle, Copy, Check, Search, Layers, Clock, Mail, PauseCircle, PlayCircle, Lock, KeyRound, Radio, MessageSquare, DatabaseZap, RefreshCw, Send, CheckCircle2, UserX, ShieldOff, Eye, Ban } from 'lucide-react';
+import { Download, Upload, Trash2, HelpCircle, Copy, Check, Search, Layers, Clock, Mail, PauseCircle, PlayCircle, Lock, KeyRound, Radio, MessageSquare, DatabaseZap, RefreshCw, Send, CheckCircle2, UserX, ShieldOff, Eye, Ban, Fingerprint, ShieldCheck } from 'lucide-react';
+import { isBiometricsAvailable, registerBiometricCredential, hashPin } from '@/lib/biometrics';
 import { hasUnlockedFeature } from '@/lib/level-system';
 import { useToast } from '@/hooks/use-toast';
 
@@ -157,6 +158,17 @@ export function SettingsPage({ onClose }: { onClose?: () => void }) {
   const [isDevPasswordModalOpen, setIsDevPasswordModalOpen] = useState(false);
   const [devPasswordInput, setDevPasswordInput] = useState('');
   const [devPasswordError, setDevPasswordError] = useState(false);
+
+  // Biometric & App Lock setup state
+  const [isBiometricSetupOpen, setIsBiometricSetupOpen] = useState(false);
+  const [setupPinInput, setSetupPinInput] = useState('');
+  const [confirmPinInput, setConfirmPinInput] = useState('');
+  const [setupPinError, setSetupPinError] = useState('');
+  const [hasBiometricSensor, setHasBiometricSensor] = useState(false);
+
+  React.useEffect(() => {
+    isBiometricsAvailable().then(setHasBiometricSensor);
+  }, []);
 
   // Change Developer Password state
   const [newDevPassword, setNewDevPassword] = useState('');
@@ -937,6 +949,73 @@ export function SettingsPage({ onClose }: { onClose?: () => void }) {
                     checked={profile.settings?.saveHistory ?? true} 
                     onCheckedChange={handleSaveHistory}
                   />
+                </SettingRow>
+
+                {/* Biometric & App Lock */}
+                <SettingRow
+                  icon={Fingerprint}
+                  iconColor="text-emerald-400"
+                  title="Biometric & PIN Lock"
+                  description={
+                    profile.settings?.enableBiometricAuth
+                      ? "Protected with Fingerprint / Face ID & 4-digit PIN"
+                      : "Protect sensitive tools (Notes, Budget) or full app"
+                  }
+                >
+                  <div className="flex items-center gap-2">
+                    {profile.settings?.enableBiometricAuth && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="text-xs h-7 px-2 text-muted-foreground hover:text-foreground"
+                        onClick={() => {
+                          setSetupPinInput('');
+                          setConfirmPinInput('');
+                          setSetupPinError('');
+                          setIsBiometricSetupOpen(true);
+                        }}
+                      >
+                        Change PIN
+                      </Button>
+                    )}
+                    <Switch
+                      checked={Boolean(profile.settings?.enableBiometricAuth)}
+                      onCheckedChange={async (checked) => {
+                        if (checked) {
+                          // Check if PIN already configured
+                          const existingPin = localStorage.getItem('sutra_security_pin_hash');
+                          if (!existingPin) {
+                            setSetupPinInput('');
+                            setConfirmPinInput('');
+                            setSetupPinError('');
+                            setIsBiometricSetupOpen(true);
+                          } else {
+                            // Already has PIN, enable biometrics registration if available
+                            if (hasBiometricSensor) {
+                              registerBiometricCredential(profile.name || 'User');
+                            }
+                            setProfile(prev => ({
+                              ...prev,
+                              settings: { ...prev.settings, enableBiometricAuth: true }
+                            }));
+                            toast({
+                              title: "Biometric & App Lock Activated",
+                              description: "Fingerprint and PIN protection is now active."
+                            });
+                          }
+                        } else {
+                          setProfile(prev => ({
+                            ...prev,
+                            settings: { ...prev.settings, enableBiometricAuth: false }
+                          }));
+                          toast({
+                            title: "Biometric Lock Deactivated",
+                            description: "Security lock is turned off."
+                          });
+                        }
+                      }}
+                    />
+                  </div>
                 </SettingRow>
 
                 {(isOwner || isSecretUnlocked) && (
@@ -2759,6 +2838,137 @@ export function SettingsPage({ onClose }: { onClose?: () => void }) {
                 className="flex-1 h-10 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-600 text-black shadow-lg shadow-amber-500/20"
               >
                 Unlock Mode
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Biometric & PIN Setup Dialog */}
+      <Dialog open={isBiometricSetupOpen} onOpenChange={setIsBiometricSetupOpen}>
+        <DialogContent className="max-w-xs sm:max-w-sm rounded-3xl p-6 bg-card border-border/60 shadow-2xl">
+          <DialogHeader className="text-center space-y-2">
+            <div className="w-12 h-12 mx-auto rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-500">
+              <Fingerprint className="w-6 h-6" />
+            </div>
+            <DialogTitle className="text-lg font-bold">Configure App Lock</DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground">
+              Set a secure 4-digit backup PIN. You can unlock using Fingerprint / Face ID or this PIN.
+            </DialogDescription>
+          </DialogHeader>
+
+          <form
+            onSubmit={async (e) => {
+              e.preventDefault();
+              setSetupPinError('');
+
+              if (!/^\d{4}$/.test(setupPinInput)) {
+                setSetupPinError('PIN must be exactly 4 numeric digits');
+                return;
+              }
+
+              if (setupPinInput !== confirmPinInput) {
+                setSetupPinError('PINs do not match');
+                return;
+              }
+
+              const pinHash = await hashPin(setupPinInput);
+              localStorage.setItem('sutra_security_pin_hash', pinHash);
+
+              // If hardware biometric available, trigger registration
+              if (hasBiometricSensor) {
+                try {
+                  await registerBiometricCredential(profile.name || 'Sutradhaar User');
+                } catch (err) {
+                  console.warn("Biometric registration deferred:", err);
+                }
+              }
+
+              setProfile(prev => ({
+                ...prev,
+                settings: { ...prev.settings, enableBiometricAuth: true }
+              }));
+
+              setIsBiometricSetupOpen(false);
+              setSetupPinInput('');
+              setConfirmPinInput('');
+              toast({
+                title: "Security Lock Enabled",
+                description: hasBiometricSensor 
+                  ? "Biometrics & 4-digit PIN setup complete!" 
+                  : "4-digit PIN lock configured successfully!"
+              });
+            }}
+            className="space-y-4 pt-2"
+          >
+            <div className="space-y-3">
+              <div>
+                <Label className="text-xs font-medium text-muted-foreground mb-1 block">New 4-Digit PIN</Label>
+                <div className="relative">
+                  <KeyRound className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    type="password"
+                    inputMode="numeric"
+                    maxLength={4}
+                    placeholder="••••"
+                    value={setupPinInput}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/\D/g, '').slice(0, 4);
+                      setSetupPinInput(val);
+                      if (setupPinError) setSetupPinError('');
+                    }}
+                    className="pl-9 h-11 text-center tracking-widest text-lg font-bold rounded-xl bg-background/50 border-border/60"
+                    autoFocus
+                  />
+                </div>
+              </div>
+
+              <div>
+                <Label className="text-xs font-medium text-muted-foreground mb-1 block">Confirm PIN</Label>
+                <div className="relative">
+                  <KeyRound className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    type="password"
+                    inputMode="numeric"
+                    maxLength={4}
+                    placeholder="••••"
+                    value={confirmPinInput}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/\D/g, '').slice(0, 4);
+                      setConfirmPinInput(val);
+                      if (setupPinError) setSetupPinError('');
+                    }}
+                    className="pl-9 h-11 text-center tracking-widest text-lg font-bold rounded-xl bg-background/50 border-border/60"
+                  />
+                </div>
+              </div>
+
+              {setupPinError && (
+                <p className="text-[11px] font-semibold text-red-500 text-center">
+                  {setupPinError}
+                </p>
+              )}
+            </div>
+
+            <div className="flex gap-2 pt-1">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setIsBiometricSetupOpen(false);
+                  setSetupPinInput('');
+                  setConfirmPinInput('');
+                  setSetupPinError('');
+                }}
+                className="flex-1 h-10 rounded-xl text-xs font-semibold"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                className="flex-1 h-10 rounded-xl text-xs font-bold bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg shadow-emerald-500/20"
+              >
+                Save Lock
               </Button>
             </div>
           </form>

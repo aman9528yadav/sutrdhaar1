@@ -755,14 +755,20 @@ export const ProfileProvider = ({ children }: { children: ReactNode }) => {
 
   const syncToCloud = useDebouncedCallback(async (profileData: UserProfile) => {
     if (profileData.isAuthenticated && !profileData.isGuest) {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user && !user.is_anonymous) {
-        const { error } = await supabase.from('user_profiles').upsert({
-            id: user.id,
-            data: removeUndefined(profileData),
-            updated_at: new Date().toISOString()
-        });
-        if (error) console.error("Cloud sync error:", error);
+      try {
+        const { data } = await supabase.auth.getUser();
+        const user = data?.user;
+        if (user && !user.is_anonymous) {
+          const { error } = await supabase.from('user_profiles').upsert({
+              id: user.id,
+              data: removeUndefined(profileData),
+              updated_at: new Date().toISOString()
+          });
+          if (error) console.error("Cloud sync error:", error);
+        }
+      } catch (err) {
+        // Silently catch network drops / offline / aborted fetches to prevent app crash
+        console.warn("Cloud sync skipped (offline or network error):", err);
       }
     }
   }, 2000);

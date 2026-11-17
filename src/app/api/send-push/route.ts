@@ -1,27 +1,32 @@
 import { NextResponse } from 'next/server';
-import webpush from 'web-push';
-import { createClient } from '@supabase/supabase-js';
 
-const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || '';
-const vapidPrivateKey = process.env.VAPID_PRIVATE_KEY || '';
-
-if (vapidPublicKey && vapidPrivateKey) {
-  webpush.setVapidDetails(
-    'mailto:admin@sutradhaar.com',
-    vapidPublicKey,
-    vapidPrivateKey
-  );
-}
-
-// We need the service role key to bypass RLS if this is called from a cron job or webhook
-// If not available, fallback to anon key (assuming RLS allows select)
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-
-const supabase = createClient(supabaseUrl, supabaseKey);
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 
 export async function POST(req: Request) {
   try {
+    const webpush = (await import('web-push')).default;
+    const { createClient } = await import('@supabase/supabase-js');
+
+    const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || '';
+    const vapidPrivateKey = process.env.VAPID_PRIVATE_KEY || '';
+
+    if (vapidPublicKey && vapidPrivateKey) {
+      webpush.setVapidDetails(
+        'mailto:admin@sutradhaar.com',
+        vapidPublicKey,
+        vapidPrivateKey
+      );
+    }
+
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+    if (!supabaseUrl || !supabaseKey) {
+      return NextResponse.json({ error: 'Database configuration missing' }, { status: 500 });
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
     const body = await req.json();
     const { userId, title, message } = body;
 
@@ -53,6 +58,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ success: true, sent: notifications.length });
   } catch (err: any) {
     console.error("Push API Error:", err);
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return NextResponse.json({ error: err?.message || 'Internal server error' }, { status: 500 });
   }
 }
